@@ -8,7 +8,8 @@
       "Bash(cd /tmp)",
       "Bash(python3 -c ' *)",
       "Bash(python -c ' *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(npm install *)"
     ]
   }
 }
