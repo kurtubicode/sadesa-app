@@ -8,16 +8,17 @@
 // })->middleware('auth:sanctum');
 
 
-// Route::get('/tes-koneksi', function () {
-//     return response()->json([
-//         'status' => 'sukses',
-//         'pesan' => 'Halo dari Backend Sadesa!'
-//     ]);
-// });
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+
+Route::get('/tes-koneksi', function () {
+    return response()->json([
+        'status' => 'sukses',
+        'pesan' => 'Halo dari Backend Sadesa!'
+    ]);
+});
 
 Route::post('/login', function (Request $request) {
     // 1. Validasi input
