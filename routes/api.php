@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\PengesahanController;
 use App\Http\Controllers\Api\PengajuanSuratController;
 use App\Http\Controllers\Api\VerifikasiController;
 use App\Models\User;
+use App\Models\Wilayah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -85,6 +86,14 @@ Route::post('/login', function (Request $request) {
 
 // Daftar jenis surat (boleh diakses publik)
 Route::get('/master-surat', [PengajuanSuratController::class, 'masterSurat']);
+
+// Daftar wilayah (untuk dropdown form registrasi)
+Route::get('/wilayah', function () {
+    $wilayah = Wilayah::orderByRaw("FIELD(tipe,'desa','dusun','rw','rt')")
+        ->orderBy('nama')
+        ->get(['id', 'nama', 'tipe', 'parent_id']);
+    return response()->json(['data' => $wilayah]);
+});
 
 // Tes koneksi (development)
 Route::get('/tes-koneksi', fn() => response()->json(['status' => 'ok', 'pesan' => 'Koneksi ke API SADESA berhasil!']));
