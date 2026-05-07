@@ -19,6 +19,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 
+Route::post('/logout', function (Request $request) {
+    $request->user()->currentAccessToken()->delete();
+    return response()->json(['message' => 'Logout berhasil'], 200);
+})->middleware('auth:sanctum');
+
 Route::post('/login', function (Request $request) {
     // 1. Validasi input
     $request->validate([
