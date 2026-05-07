@@ -7,105 +7,78 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import api from "@/lib/api";
+import { saveSession, getToken } from "@/lib/userStorage";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("ahmad@gmail.com");
-  const [password, setPassword] = useState("password");
-  const [loading, setLoading] = useState(false);
-  const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [checking, setChecking] = useState(true);
 
   const router = useRouter();
 
+  // Cek sesi tersimpan saat app dibuka
   useEffect(() => {
-    const checkUserToken = async () => {
-      try {
-        // Cek apakah ada token tersimpan di memori HP
-        let userToken;
-        if (Platform.OS === "web") {
-          userToken = localStorage.getItem("sadesa_user_token");
-        } else {
-          userToken = await SecureStore.getItemAsync("sadesa_user_token");
-        }
-
-        if (userToken) {
-          // Jika ada token, lewati login dan langsung ke beranda
-          router.replace("/home");
-        } else {
-          // Jika tidak ada, hentikan loading dan tampilkan form login
-          setIsCheckingToken(false);
-        }
-      } catch (e) {
-        console.error("Gagal mengecek token:", e);
-        setIsCheckingToken(false);
+    getToken().then((token) => {
+      if (token) {
+        router.replace("/home");
+      } else {
+        setChecking(false);
       }
-    };
-
-    checkUserToken();
+    });
   }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Peringatan", "Email dan password tidak boleh kosong!");
+      Alert.alert("Peringatan", "Email dan password tidak boleh kosong.");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post("/api/login", {
-        email: email,
-        password: password,
-      });
-      // http://172.18.50.209:8000/api/login
+      const res = await api.post("/api/login", { email, password });
 
-      const token = response.data.token;
-
-      // SIMPAN TOKEN KE MEMORI HP (SecureStore)
-      if (Platform.OS === "web") {
-        localStorage.setItem("sadesa_user_token", token);
-      } else {
-        await SecureStore.setItemAsync("sadesa_user_token", token);
-      }
-
-      // Pindah ke halaman tabs
-      console.log("✅ Login berhasil!");
+      await saveSession(res.data.token, res.data.user);
       router.replace("/home");
-    } catch (error) {
-      console.error("❌ Login gagal:", error);
-      Alert.alert(
-        "Login Gagal",
-        "Email atau Password salah, atau server mati.",
-      );
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const msg    = error?.response?.data?.message;
+
+      if (status === 403) {
+        Alert.alert("Akses Ditolak", msg ?? "Akun Anda belum dapat digunakan.");
+      } else if (status === 401) {
+        Alert.alert("Login Gagal", "Email atau password salah.");
+      } else {
+        Alert.alert("Login Gagal", "Tidak dapat terhubung ke server.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Tampilan layar putih + spinner saat aplikasi sedang mengecek token
-  if (isCheckingToken) {
+  if (checking) {
     return (
       <View style={[styles.container, { alignItems: "center" }]}>
         <ActivityIndicator size="large" color="#007BFF" />
-        <Text style={{ marginTop: 10, color: "#666" }}>Memuat Sadesa...</Text>
+        <Text style={{ marginTop: 10, color: "#666" }}>Memuat SADESA…</Text>
       </View>
     );
   }
 
-  // Tampilan Form Login
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sadesa Mobile</Text>
-      <Text style={styles.subtitle}>Sistem Administrasi Desa</Text>
+      <Text style={styles.title}>SADESA</Text>
+      <Text style={styles.subtitle}>Sahabat Digital Desa Cirangkong</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
         autoCapitalize="none"
       />
       <TextInput
@@ -124,8 +97,15 @@ export default function LoginScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>LOGIN</Text>
+          <Text style={styles.buttonText}>MASUK</Text>
         )}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.push("/register")}>
+        <Text style={styles.registerLink}>
+          Belum punya akun?{" "}
+          <Text style={styles.registerLinkBold}>Daftar di sini</Text>
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -135,35 +115,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    padding: 20,
+    padding: 24,
     backgroundColor: "#f5f5f5",
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#007BFF",
     textAlign: "center",
-    marginBottom: 5,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#666",
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 36,
   },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd",
-    padding: 15,
+    padding: 14,
     borderRadius: 8,
-    marginBottom: 15,
+    marginBottom: 14,
+    fontSize: 15,
   },
   button: {
     backgroundColor: "#007BFF",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
+    marginTop: 4,
+    marginBottom: 20,
   },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  registerLink: {
+    textAlign: "center",
+    color: "#666",
+    fontSize: 14,
+  },
+  registerLinkBold: {
+    color: "#007BFF",
+    fontWeight: "bold",
+  },
 });

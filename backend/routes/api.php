@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\PengaduanController;
 use App\Http\Controllers\Api\PengesahanController;
 use App\Http\Controllers\Api\PengajuanSuratController;
 use App\Http\Controllers\Api\VerifikasiController;
+use App\Models\KategoriAduan;
+use App\Models\KontenDesa;
 use App\Models\User;
+use App\Models\Wilayah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -86,6 +90,31 @@ Route::post('/login', function (Request $request) {
 // Daftar jenis surat (boleh diakses publik)
 Route::get('/master-surat', [PengajuanSuratController::class, 'masterSurat']);
 
+// Daftar wilayah (untuk dropdown form registrasi)
+Route::get('/wilayah', function () {
+    $wilayah = Wilayah::orderByRaw("FIELD(tipe,'desa','dusun','rw','rt')")
+        ->orderBy('nama')
+        ->get(['id', 'nama', 'tipe', 'parent_id']);
+    return response()->json(['data' => $wilayah]);
+});
+
+// Kategori aduan (publik)
+Route::get('/kategori-aduan', fn () => response()->json([
+    'data' => KategoriAduan::orderBy('nama_kategori')->get(['id', 'nama_kategori', 'deskripsi']),
+]));
+
+// Informasi desa — berita & pengumuman publik
+Route::get('/informasi', fn () => response()->json([
+    'data' => KontenDesa::published()
+        ->orderByDesc('created_at')
+        ->get(['id', 'judul', 'slug', 'tipe', 'created_at']),
+]));
+
+Route::get('/informasi/{slug}', function (string $slug) {
+    $konten = KontenDesa::published()->where('slug', $slug)->firstOrFail();
+    return response()->json(['data' => $konten]);
+});
+
 // Tes koneksi (development)
 Route::get('/tes-koneksi', fn() => response()->json(['status' => 'ok', 'pesan' => 'Koneksi ke API SADESA berhasil!']));
 
@@ -106,11 +135,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── WARGA ────────────────────────────────────────────────
     Route::middleware('role:warga')->group(function () {
+        // Pengajuan surat
         Route::get('/pengajuan',                          [PengajuanSuratController::class, 'index']);
         Route::post('/pengajuan',                         [PengajuanSuratController::class, 'store']);
         Route::get('/pengajuan/{id}',                     [PengajuanSuratController::class, 'show']);
         Route::post('/pengajuan/{id}/dokumen',            [PengajuanSuratController::class, 'uploadDokumen']);
         Route::delete('/pengajuan/{id}',                  [PengajuanSuratController::class, 'batalkan']);
+
+        // Pengaduan
+        Route::get('/pengaduan',                          [PengaduanController::class, 'index']);
+        Route::post('/pengaduan',                         [PengaduanController::class, 'store']);
+        Route::get('/pengaduan/{id}',                     [PengaduanController::class, 'show']);
     });
 
     // ─── STAFF ────────────────────────────────────────────────
