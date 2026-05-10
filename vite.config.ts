@@ -25,29 +25,11 @@ export default defineConfig({
         jsx: 'automatic',
     },
     server: {
-        host: '0.0.0.0', // Mengizinkan akses dari jaringan
+        host: '0.0.0.0',
+        // HMR: gunakan 'localhost' agar selalu cocok saat diakses dari browser di mesin yang sama.
+        // Jika akses dari HP/device lain di jaringan, ganti dengan IP WiFi kamu (cek: ipconfig).
         hmr: {
-            host: '192.168.8.185', // Paksa Vite menggunakan IP kamu
+            host: 'localhost',
         },
     },
 });
-
-// import { defineConfig } from 'vite';
-// import laravel from 'laravel-vite-plugin';
-// import react from '@vitejs/plugin-react';
-
-// export default defineConfig({
-//     plugins: [
-//         laravel({
-//             input: 'resources/js/app.jsx',
-//             refresh: true,
-//         }),
-//         react(),
-//     ],
-//     server: {
-//         host: '0.0.0.0', // Mengizinkan akses dari jaringan
-//         hmr: {
-//             host: '192.168.8.185', // Paksa Vite menggunakan IP kamu
-//         },
-//     },
-// });

@@ -1,5 +1,16 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    BarChart3,
+    BookOpen,
+    ClipboardList,
+    FileCheck,
+    FileText,
+    LayoutGrid,
+    Megaphone,
+    Settings,
+    ShieldCheck,
+    Users,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,29 +26,48 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
+import type { Auth } from '@/types/auth';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
+// ─── Nav items per role ───────────────────────────────────────────────────────
+
+const adminNavItems: NavItem[] = [
+    { title: 'Dashboard',       href: dashboard(), icon: LayoutGrid },
+    { title: 'Kelola Pengguna', href: '/admin/users',   icon: Users },
+    { title: 'Pengajuan Surat', href: '/admin/pengajuan', icon: FileText },
+    { title: 'Pengaduan',       href: '/admin/pengaduan', icon: Megaphone },
+    { title: 'Konten Desa',     href: '/admin/konten',    icon: BookOpen },
+    { title: 'Audit Log',       href: '/admin/audit-log', icon: ClipboardList },
+    { title: 'Pengaturan',      href: '/settings',        icon: Settings },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
+const staffNavItems: NavItem[] = [
+    { title: 'Dashboard',             href: dashboard(),       icon: LayoutGrid },
+    { title: 'Antrian Pengajuan',     href: '/staff/pengajuan', icon: ClipboardList },
+    { title: 'Verifikasi Berkas',     href: '/staff/verifikasi', icon: FileCheck },
+    { title: 'Pengaduan Masuk',       href: '/staff/pengaduan',  icon: Megaphone },
 ];
+
+const kepalDesaNavItems: NavItem[] = [
+    { title: 'Dashboard',         href: dashboard(),            icon: LayoutGrid },
+    { title: 'Pengesahan Surat',  href: '/kepala-desa/pengajuan', icon: ShieldCheck },
+    { title: 'Statistik',         href: '/kepala-desa/statistik', icon: BarChart3 },
+];
+
+const footerNavItems: NavItem[] = [];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
+    const { auth } = usePage<{ auth: Auth }>().props;
+    const role = auth?.user?.role ?? 'staff';
+
+    const navItems =
+        role === 'admin'
+            ? adminNavItems
+            : role === 'kepala_desa'
+              ? kepalDesaNavItems
+              : staffNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -53,7 +83,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
