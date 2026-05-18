@@ -20,7 +20,7 @@ class StaffPengajuanController extends Controller
     {
         $query = PengajuanSurat::with([
             'user:id,name,nik',
-            'masterSurat:id,nama,kode',
+            'masterSurat:id,nama_surat,kode',
         ]);
 
         if ($request->filled('status')) {

@@ -45,7 +45,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard() },
-    { title: 'Pengaduan', href: '/admin/pengaduan' },
+    { title: 'Pengaduan', href: '/staff/pengaduan' },
     { title: 'Detail', href: '#' },
 ];
 
@@ -56,7 +56,7 @@ function FormTanggapi({ pengaduanId }: { pengaduanId: number }) {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(`/admin/pengaduan/${pengaduanId}/tanggapi`, { onSuccess: () => reset() });
+        post(`/staff/pengaduan/${pengaduanId}/tanggapi`, { onSuccess: () => reset() });
     };
 
     return (
@@ -94,9 +94,16 @@ function FormUbahStatus({ pengaduanId, currentStatus }: { pengaduanId: number; c
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        patch(`/admin/pengaduan/${pengaduanId}/status`, {
+        patch(`/staff/pengaduan/${pengaduanId}/status`, {
             onSuccess: () => { reset(); setOpen(false); },
         });
+    };
+
+    // Staff hanya bisa ubah ke diproses, selesai, ditolak
+    const allowedStatuses: Record<string, string> = {
+        diproses: 'Diproses',
+        selesai: 'Selesai',
+        ditolak: 'Ditolak',
     };
 
     return (
@@ -117,7 +124,7 @@ function FormUbahStatus({ pengaduanId, currentStatus }: { pengaduanId: number; c
                             onChange={e => setData('status', e.target.value)}
                             className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                         >
-                            {Object.entries(STATUS_LABEL).map(([k, v]) => (
+                            {Object.entries(allowedStatuses).map(([k, v]) => (
                                 <option key={k} value={k}>{v}</option>
                             ))}
                         </select>
@@ -152,18 +159,18 @@ function FormUbahStatus({ pengaduanId, currentStatus }: { pengaduanId: number; c
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function AdminPengaduanDetail({ pengaduan }: Props) {
+export default function StaffPengaduanDetail({ pengaduan }: Props) {
     const cfg = STATUS_COLOR[pengaduan.status] ?? 'bg-muted text-muted-foreground';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Detail Pengaduan | SADESA" />
+            <Head title="Tangani Pengaduan | SADESA" />
 
             <div className="flex flex-col gap-6 p-4">
 
                 {/* Back + Title */}
                 <div className="flex items-start gap-3">
-                    <Link href="/admin/pengaduan" className="mt-0.5 rounded-lg border p-2 hover:bg-muted">
+                    <Link href="/staff/pengaduan" className="mt-0.5 rounded-lg border p-2 hover:bg-muted">
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                     <div className="flex-1">
@@ -186,7 +193,7 @@ export default function AdminPengaduanDetail({ pengaduan }: Props) {
 
                 <div className="grid gap-6 lg:grid-cols-3">
 
-                    {/* Kiri: konten utama */}
+                    {/* Kiri: konten */}
                     <div className="col-span-2 space-y-6">
 
                         {/* Deskripsi */}
@@ -224,7 +231,6 @@ export default function AdminPengaduanDetail({ pengaduan }: Props) {
                                 Tanggapan ({pengaduan.tanggapan?.length ?? 0})
                             </h3>
 
-                            {/* Daftar tanggapan */}
                             {(!pengaduan.tanggapan || pengaduan.tanggapan.length === 0) ? (
                                 <p className="mb-4 text-sm text-muted-foreground">Belum ada tanggapan.</p>
                             ) : (
@@ -264,7 +270,6 @@ export default function AdminPengaduanDetail({ pengaduan }: Props) {
                                 </div>
                             )}
 
-                            {/* Form kirim tanggapan */}
                             <div className="border-t pt-4">
                                 <p className="mb-2 text-xs font-medium text-muted-foreground">Kirim Tanggapan</p>
                                 <FormTanggapi pengaduanId={pengaduan.id} />
@@ -292,7 +297,7 @@ export default function AdminPengaduanDetail({ pengaduan }: Props) {
                             </dl>
                         </div>
 
-                        {/* Status saat ini */}
+                        {/* Status */}
                         <div className="rounded-xl border bg-card p-5 shadow-sm">
                             <h4 className="mb-3 font-semibold text-foreground">Status Pengaduan</h4>
                             <div className="mb-4 flex items-center gap-2">

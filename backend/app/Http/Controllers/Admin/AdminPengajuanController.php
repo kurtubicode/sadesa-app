@@ -14,7 +14,7 @@ class AdminPengajuanController extends Controller
     {
         $query = PengajuanSurat::with([
             'user:id,name,nik',
-            'masterSurat:id,nama,kode',
+            'masterSurat:id,nama_surat,kode',
         ])->select('id', 'no_pengajuan', 'user_id', 'master_surat_id', 'status', 'catatan', 'created_at', 'updated_at');
 
         if ($request->filled('status')) {
@@ -39,7 +39,7 @@ class AdminPengajuanController extends Controller
     {
         $pengajuan->load([
             'user:id,name,nik,email,phone',
-            'masterSurat:id,nama,kode,persyaratan',
+            'masterSurat:id,nama_surat,kode,persyaratan',
             'dokumenPersyaratan:id,pengajuan_id,nama_file,tipe,created_at',
             'verifikasiBerkas.staff:id,name',
             'pengesahanPermohonan.kepalaDesa:id,name',

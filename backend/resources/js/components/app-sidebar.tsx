@@ -4,6 +4,7 @@ import {
     ClipboardList,
     FileText,
     LayoutGrid,
+    MapPin,
     Megaphone,
     Settings,
     ShieldCheck,
@@ -29,19 +30,22 @@ import type { Auth } from '@/types/auth';
 // ─── Nav items per role ───────────────────────────────────────────────────────
 
 const adminNavItems: NavItem[] = [
-    { title: 'Dashboard',       href: dashboard(), icon: LayoutGrid },
-    { title: 'Kelola Pengguna', href: '/admin/users',   icon: Users },
-    { title: 'Pengajuan Surat', href: '/admin/pengajuan', icon: FileText },
-    { title: 'Pengaduan',       href: '/admin/pengaduan', icon: Megaphone },
-    { title: 'Konten Desa',     href: '/admin/konten',    icon: BookOpen },
-    { title: 'Audit Log',       href: '/admin/audit-log', icon: ClipboardList },
-    { title: 'Pengaturan',      href: '/settings',        icon: Settings },
+    { title: 'Dashboard',       href: dashboard(),          icon: LayoutGrid },
+    { title: 'Kelola Pengguna', href: '/admin/users',       icon: Users },
+    { title: 'Pengajuan Surat', href: '/admin/pengajuan',   icon: FileText },
+    { title: 'Pengaduan',       href: '/admin/pengaduan',   icon: Megaphone },
+    { title: 'Master Surat',    href: '/admin/master-surat', icon: ClipboardList },
+    { title: 'Data Master',     href: '/admin/data-master',  icon: MapPin },
+    { title: 'Konten Desa',     href: '/admin/konten',       icon: BookOpen },
+    { title: 'Audit Log',       href: '/admin/audit-log',    icon: ShieldCheck },
+    { title: 'Pengaturan',      href: '/settings',          icon: Settings },
 ];
 
 const staffNavItems: NavItem[] = [
-    { title: 'Dashboard',         href: dashboard(),            icon: LayoutGrid },
-    { title: 'Antrian Pengajuan', href: '/staff/pengajuan',    icon: ClipboardList },
-    { title: 'Pengaturan',        href: '/settings',            icon: Settings },
+    { title: 'Dashboard',         href: dashboard(),           icon: LayoutGrid },
+    { title: 'Antrian Pengajuan', href: '/staff/pengajuan',   icon: ClipboardList },
+    { title: 'Pengaduan',         href: '/staff/pengaduan',   icon: Megaphone },
+    { title: 'Pengaturan',        href: '/settings',           icon: Settings },
 ];
 
 const kepalDesaNavItems: NavItem[] = [

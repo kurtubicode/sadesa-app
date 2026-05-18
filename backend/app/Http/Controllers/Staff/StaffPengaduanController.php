@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AdminPengaduanController extends Controller
+class StaffPengaduanController extends Controller
 {
     // ─── Index ────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,11 @@ class AdminPengaduanController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        } else {
+            // Default: tampilkan yang perlu ditangani
+            $query->whereIn('status', ['menunggu', 'diproses']);
         }
+
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('judul', 'like', "%{$request->search}%")
@@ -35,7 +39,7 @@ class AdminPengaduanController extends Controller
 
         $pengaduan = $query->latest()->paginate(20)->withQueryString();
 
-        return Inertia::render('admin/pengaduan', [
+        return Inertia::render('staff/pengaduan', [
             'pengaduan' => $pengaduan,
             'filters'   => $request->only('status', 'search'),
         ]);
@@ -52,7 +56,7 @@ class AdminPengaduanController extends Controller
             'tanggapan.user:id,name,role',
         ]);
 
-        return Inertia::render('admin/pengaduan-detail', [
+        return Inertia::render('staff/pengaduan-detail', [
             'pengaduan' => $pengaduan,
         ]);
     }
@@ -88,14 +92,12 @@ class AdminPengaduanController extends Controller
     public function updateStatus(Request $request, Pengaduan $pengaduan): RedirectResponse
     {
         $request->validate([
-            'status'  => ['required', Rule::in(['menunggu', 'diproses', 'selesai', 'ditolak'])],
+            'status'  => ['required', Rule::in(['diproses', 'selesai', 'ditolak'])],
             'catatan' => 'nullable|string|max:1000',
         ]);
 
         $statusLama = $pengaduan->status;
-        $pengaduan->update([
-            'status'  => $request->status,
-        ]);
+        $pengaduan->update(['status' => $request->status]);
 
         AuditLog::catat('ubah_status_pengaduan', 'Pengaduan', $pengaduan->id, [
             'status_lama' => $statusLama,
@@ -103,7 +105,6 @@ class AdminPengaduanController extends Controller
             'catatan'     => $request->catatan,
         ]);
 
-        // Jika ada catatan, simpan sebagai tanggapan sistem
         if ($request->filled('catatan')) {
             TanggapanPengaduan::create([
                 'pengaduan_id'  => $pengaduan->id,
@@ -112,7 +113,7 @@ class AdminPengaduanController extends Controller
             ]);
         }
 
-        $label = ['menunggu' => 'Menunggu', 'diproses' => 'Diproses', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak'];
+        $label = ['diproses' => 'Diproses', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak'];
 
         return back()->with('success', 'Status pengaduan diubah ke "' . ($label[$request->status] ?? $request->status) . '".');
     }

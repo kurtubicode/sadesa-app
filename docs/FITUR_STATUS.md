@@ -1,7 +1,7 @@
 # SADESA — Status Fitur Lengkap
 
 > Dokumen ini mencatat semua fitur yang sudah selesai, sedang berjalan, dan belum dikerjakan.  
-> **Terakhir diperbarui:** 19 Mei 2026
+> **Terakhir diperbarui:** 19 Mei 2026 — Register page + Admin Master Surat + Tanggapi Pengaduan + Data Master (Wilayah & Kategori)
 
 ---
 
@@ -447,16 +447,16 @@
 
 | # | Fitur | Platform |
 |---|-------|----------|
-| 1 | Admin: Kelola Master Surat (CRUD) | Web |
-| 2 | Staff: Handle pengaduan (tanggapi + ubah status) | Web |
-| 3 | Admin: Tanggapi pengaduan + ubah status | Web |
+| ~~1~~ | ~~Admin: Kelola Master Surat (CRUD)~~ | ~~Web~~ ✅ Selesai |
+| ~~2~~ | ~~Staff: Handle pengaduan (tanggapi + ubah status)~~ | ~~Web~~ ✅ Selesai |
+| ~~3~~ | ~~Admin: Tanggapi pengaduan + ubah status~~ | ~~Web~~ ✅ Selesai |
 
 #### 🟡 Medium
 
 | # | Fitur | Platform |
 |---|-------|----------|
-| 4 | Admin: Kelola Wilayah (CRUD) | Web |
-| 5 | Admin: Kelola Kategori Aduan (CRUD) | Web |
+| ~~4~~ | ~~Admin: Kelola Wilayah (CRUD)~~ | ~~Web~~ ✅ Selesai |
+| ~~5~~ | ~~Admin: Kelola Kategori Aduan (CRUD)~~ | ~~Web~~ ✅ Selesai |
 | 6 | Admin: Generate / upload surat output | Web |
 | 7 | Register page dalam Bahasa Indonesia | Web |
 | 8 | Search di tab Riwayat & Status | Mobile |
