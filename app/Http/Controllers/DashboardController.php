@@ -67,7 +67,7 @@ class DashboardController extends Controller
             ->count();
 
         $recentPengajuan = PengajuanSurat::with('user:id,name')
-            ->with('masterSurat:id,nama')
+            ->with('masterSurat:id,nama_surat')
             ->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'ditolak_kepala'])
             ->latest()
             ->take(5)
@@ -92,7 +92,7 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $recentPengajuan = PengajuanSurat::where('user_id', $user->id)
-            ->with('masterSurat:id,nama,kode')
+            ->with('masterSurat:id,nama_surat,kode')
             ->latest()->take(5)
             ->get(['id', 'no_pengajuan', 'master_surat_id', 'status', 'created_at']);
 
@@ -129,7 +129,7 @@ class DashboardController extends Controller
         $pengaduanBaru      = Pengaduan::where('status', 'menunggu')->count();
 
         $antrian = PengajuanSurat::with('user:id,name')
-            ->with('masterSurat:id,nama,kode')
+            ->with('masterSurat:id,nama_surat,kode')
             ->where('status', 'menunggu')
             ->oldest()
             ->take(10)
