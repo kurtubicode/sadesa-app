@@ -51,7 +51,7 @@ class StaffPengajuanController extends Controller
     {
         $pengajuan->load([
             'user:id,name,nik,email,phone',
-            'masterSurat:id,nama,kode,persyaratan',
+            'masterSurat:id,nama_surat,kode,persyaratan',
             'dokumenPersyaratan:id,pengajuan_id,nama_file,tipe,created_at',
             'verifikasiBerkas.staff:id,name',
         ]);

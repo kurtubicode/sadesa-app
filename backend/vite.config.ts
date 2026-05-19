@@ -25,6 +25,7 @@ export default defineConfig({
         jsx: 'automatic',
     },
     server: {
+        cors: true,
         host: '0.0.0.0',
         // HMR: gunakan 'localhost' agar selalu cocok saat diakses dari browser di mesin yang sama.
         // Jika akses dari HP/device lain di jaringan, ganti dengan IP WiFi kamu (cek: ipconfig).
