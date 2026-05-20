@@ -3,13 +3,12 @@ import {
   View, Text, ScrollView, StyleSheet,
   ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import api from "@/lib/api";
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
-const TIPE_CONFIG: Record<string, { warna: string; label: string; icon: string }> = {
-  berita:       { warna: "#007BFF", label: "Berita",       icon: "📰" },
-  pengumuman:   { warna: "#FFC107", label: "Pengumuman",   icon: "📢" },
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface KontenDetail {
   id: number;
@@ -22,20 +21,28 @@ interface KontenDetail {
   updated_at: string;
 }
 
-function formatTanggal(isoDate: string): string {
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const TIPE_MAP: Record<string, { bg: string; text: string; label: string }> = {
+  berita:     { bg: COLORS.primaryLight, text: COLORS.primary, label: "BERITA"     },
+  pengumuman: { bg: "#FEF3C7",           text: "#92400E",       label: "PENGUMUMAN" },
+  agenda:     { bg: "#F0FDF4",           text: "#166534",       label: "AGENDA"     },
+};
+
+function formatTanggal(iso: string) {
   try {
-    return new Date(isoDate).toLocaleDateString("id-ID", {
+    return new Date(iso).toLocaleDateString("id-ID", {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
-  } catch {
-    return isoDate;
-  }
+  } catch { return iso; }
 }
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DetailInformasiScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const [data, setData]         = useState<KontenDetail | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData]             = useState<KontenDetail | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
@@ -53,68 +60,103 @@ export default function DetailInformasiScreen() {
   useFocusEffect(useCallback(() => { setLoading(true); fetchData(); }, [slug]));
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#007BFF" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
   }
 
   if (!data) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorIcon}>😕</Text>
+        <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
         <Text style={styles.errorText}>Konten tidak ditemukan.</Text>
       </View>
     );
   }
 
-  const cfg = TIPE_CONFIG[data.tipe] ?? { warna: "#888", label: data.tipe, icon: "📄" };
+  const tc = TIPE_MAP[data.tipe] ?? TIPE_MAP.berita;
 
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); fetchData(); }}
+          tintColor={COLORS.primary}
+        />
+      }
+      showsVerticalScrollIndicator={false}
     >
-      {/* Tipe badge */}
-      <View style={[styles.tipeBadge, { backgroundColor: cfg.warna + "18" }]}>
-        <Text style={[styles.tipeBadgeText, { color: cfg.warna }]}>
-          {cfg.icon}  {cfg.label}
-        </Text>
+      {/* Thumbnail hero */}
+      <View style={styles.hero}>
+        <Ionicons name="image-outline" size={36} color="#CCCCCC" />
       </View>
 
-      {/* Judul */}
-      <Text style={styles.judul}>{data.judul}</Text>
+      <View style={styles.body}>
+        {/* Badge tipe */}
+        <View style={[styles.badge, { backgroundColor: tc.bg }]}>
+          <Text style={[styles.badgeText, { color: tc.text }]}>{tc.label}</Text>
+        </View>
 
-      {/* Meta */}
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>{formatTanggal(data.created_at)}</Text>
-        {data.penulis ? (
-          <Text style={styles.meta}>  ·  {data.penulis}</Text>
-        ) : null}
+        {/* Judul */}
+        <Text style={styles.judul}>{data.judul}</Text>
+
+        {/* Meta */}
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={14} color={COLORS.textMuted} />
+          <Text style={styles.meta}>{formatTanggal(data.created_at)}</Text>
+          {data.penulis ? (
+            <>
+              <Text style={styles.metaDot}>·</Text>
+              <Ionicons name="person-outline" size={13} color={COLORS.textMuted} />
+              <Text style={styles.meta}>{data.penulis}</Text>
+            </>
+          ) : null}
+        </View>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Konten */}
+        <Text style={styles.konten}>{data.konten}</Text>
       </View>
-
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Konten */}
-      <Text style={styles.konten}>{data.konten}</Text>
     </ScrollView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen:         { flex: 1, backgroundColor: "#fff" },
-  content:        { padding: 20, paddingBottom: 48 },
-  center:         { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
-  errorIcon:      { fontSize: 48, marginBottom: 12 },
-  errorText:      { fontSize: 15, color: "#888" },
+  screen:    { flex: 1, backgroundColor: COLORS.white },
+  center:    { flex: 1, justifyContent: "center", alignItems: "center", gap: SPACING.md, padding: SPACING.xxxl },
+  errorText: { fontSize: FONT.md, color: COLORS.textMuted },
 
-  tipeBadge:      { alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, marginBottom: 14 },
-  tipeBadgeText:  { fontSize: 12, fontWeight: "700" },
-  judul:          { fontSize: 22, fontWeight: "800", color: "#111", lineHeight: 32, marginBottom: 10 },
+  // Hero
+  hero: {
+    height: 200, backgroundColor: "#F0F0F0",
+    justifyContent: "center", alignItems: "center",
+  },
 
-  metaRow:        { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
-  meta:           { fontSize: 12, color: "#999" },
+  body: { padding: SPACING.lg, paddingBottom: SPACING.xxxl * 2 },
 
-  divider:        { height: 1, backgroundColor: "#EEE", marginBottom: 20 },
+  // Badge
+  badge:     { alignSelf: "flex-start", paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.xs, marginBottom: SPACING.md },
+  badgeText: { fontSize: FONT.xs, fontWeight: "700" },
 
-  konten:         { fontSize: 15, color: "#333", lineHeight: 26 },
+  judul: {
+    fontSize: FONT.xxxl, fontWeight: "800", color: COLORS.text,
+    lineHeight: 32, marginBottom: SPACING.md,
+  },
+
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.xl },
+  meta:    { fontSize: FONT.sm, color: COLORS.textMuted },
+  metaDot: { fontSize: FONT.sm, color: COLORS.textMuted },
+
+  divider: { height: 1, backgroundColor: COLORS.divider, marginBottom: SPACING.xl },
+
+  konten: { fontSize: FONT.lg, color: COLORS.text, lineHeight: 28 },
 });

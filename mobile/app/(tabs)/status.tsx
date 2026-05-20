@@ -1,15 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
+  View, Text, FlatList, TouchableOpacity,
+  StyleSheet, ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "@/lib/api";
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,92 +18,96 @@ interface PengajuanItem {
   status: string;
   tanggal: string;
   catatan: string | null;
+  url_surat?: string | null;
 }
 
 interface PengaduanItem {
   id: number;
   judul: string;
+  kategori?: string;
   status: string;
   tanggal: string;
 }
 
-// ─── Status configs ───────────────────────────────────────────────────────────
+interface FeedItem {
+  key: string;
+  type: "pengajuan" | "pengaduan";
+  rawId: number;
+  typeLabel: string;
+  title: string;
+  status: string;
+  tanggal: string;
+  canDownload: boolean;
+}
 
-const PENGAJUAN_STATUS: Record<string, { warna: string; label: string; icon: string }> = {
-  menunggu:             { warna: "#FFC107", label: "Menunggu",              icon: "⏳" },
-  diproses:             { warna: "#17A2B8", label: "Diproses",              icon: "🔄" },
-  diverifikasi:         { warna: "#4A90E2", label: "Diverifikasi",          icon: "✅" },
-  ditolak_staff:        { warna: "#DC3545", label: "Ditolak Petugas",       icon: "❌" },
-  menunggu_pengesahan:  { warna: "#6F42C1", label: "Menunggu Pengesahan",   icon: "📋" },
-  disetujui:            { warna: "#28A745", label: "Disetujui",             icon: "✅" },
-  ditolak_kepala:       { warna: "#DC3545", label: "Ditolak Kepala Desa",   icon: "❌" },
-  selesai:              { warna: "#28A745", label: "Selesai",               icon: "🎉" },
-  dibatalkan:           { warna: "#6C757D", label: "Dibatalkan",            icon: "🚫" },
+// ─── Status maps ──────────────────────────────────────────────────────────────
+
+const P_STATUS: Record<string, { bg: string; text: string; label: string }> = {
+  menunggu:            { bg: "#FEF3C7", text: "#92400E", label: "Menunggu" },
+  diproses:            { bg: "#DBEAFE", text: "#1E40AF", label: "Diproses" },
+  diverifikasi:        { bg: "#EDE9FE", text: "#5B21B6", label: "Verifikasi" },
+  ditolak_staff:       { bg: "#FEE2E2", text: "#991B1B", label: "Ditolak" },
+  menunggu_pengesahan: { bg: "#F3E8FF", text: "#6B21A8", label: "Pengesahan" },
+  disetujui:           { bg: "#D1FAE5", text: "#065F46", label: "Disetujui" },
+  ditolak_kepala:      { bg: "#FEE2E2", text: "#991B1B", label: "Ditolak" },
+  selesai:             { bg: "#D1FAE5", text: "#065F46", label: "Selesai" },
+  dibatalkan:          { bg: "#F3F4F6", text: "#6B7280", label: "Dibatalkan" },
 };
 
-const PENGADUAN_STATUS: Record<string, { warna: string; label: string; icon: string }> = {
-  menunggu: { warna: "#FFC107", label: "Menunggu", icon: "⏳" },
-  diproses: { warna: "#17A2B8", label: "Diproses", icon: "🔄" },
-  selesai:  { warna: "#28A745", label: "Selesai",  icon: "✅" },
-  ditolak:  { warna: "#DC3545", label: "Ditolak",  icon: "❌" },
+const A_STATUS: Record<string, { bg: string; text: string; label: string }> = {
+  menunggu: { bg: "#FEF3C7", text: "#92400E", label: "Menunggu" },
+  diproses: { bg: "#DBEAFE", text: "#1E40AF", label: "Diproses" },
+  selesai:  { bg: "#D1FAE5", text: "#065F46", label: "Selesai"  },
+  ditolak:  { bg: "#FEE2E2", text: "#991B1B", label: "Ditolak"  },
 };
 
-// ─── Timeline mini ────────────────────────────────────────────────────────────
+const P_IN_PROGRESS = ["menunggu", "diproses", "diverifikasi", "menunggu_pengesahan"];
+const A_IN_PROGRESS = ["menunggu", "diproses"];
 
-const PENGAJUAN_STEPS = ["menunggu", "diproses", "diverifikasi", "menunggu_pengesahan", "selesai"];
+// ─── Sub-komponen ─────────────────────────────────────────────────────────────
 
-function MiniTimeline({ status }: { status: string }) {
-  const isRejected = ["ditolak_staff", "ditolak_kepala", "dibatalkan"].includes(status);
-  const currentIdx = isRejected
-    ? PENGAJUAN_STEPS.indexOf("diverifikasi")
-    : PENGAJUAN_STEPS.indexOf(status === "disetujui" ? "selesai" : status);
-
+function Badge({ status, map }: {
+  status: string;
+  map: Record<string, { bg: string; text: string; label: string }>;
+}) {
+  const cfg = map[status] ?? { bg: "#F3F4F6", text: "#6B7280", label: status };
   return (
-    <View style={tlStyles.row}>
-      {PENGAJUAN_STEPS.map((step, idx) => {
-        const isDone   = idx < currentIdx;
-        const isActive = idx === currentIdx && !isRejected;
-        const isFail   = isRejected && idx === currentIdx;
-        return (
-          <View key={step} style={tlStyles.step}>
-            <View style={[
-              tlStyles.dot,
-              isDone   && tlStyles.dotDone,
-              isActive && tlStyles.dotActive,
-              isFail   && tlStyles.dotFail,
-            ]} />
-            {idx < PENGAJUAN_STEPS.length - 1 && (
-              <View style={[tlStyles.line, isDone && tlStyles.lineDone, isFail && tlStyles.lineFail]} />
-            )}
-          </View>
-        );
-      })}
+    <View style={[s.badge, { backgroundColor: cfg.bg }]}>
+      <Text style={[s.badgeText, { color: cfg.text }]}>{cfg.label}</Text>
     </View>
   );
 }
 
-const tlStyles = StyleSheet.create({
-  row:      { flexDirection: "row", alignItems: "center", marginTop: 10 },
-  step:     { flexDirection: "row", alignItems: "center" },
-  dot:      { width: 10, height: 10, borderRadius: 5, backgroundColor: "#DDD" },
-  dotDone:  { backgroundColor: "#28A745" },
-  dotActive:{ backgroundColor: "#4A90E2", width: 12, height: 12, borderRadius: 6 },
-  dotFail:  { backgroundColor: "#DC3545" },
-  line:     { width: 22, height: 2, backgroundColor: "#DDD" },
-  lineDone: { backgroundColor: "#28A745" },
-  lineFail: { backgroundColor: "#DC3545" },
-});
+function StatCard({ icon, value, label, color }: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: number;
+  label: string;
+  color: string;
+}) {
+  return (
+    <View style={s.statCard}>
+      <View style={[s.statIconWrap, { backgroundColor: color + "22" }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <Text style={s.statValue}>{String(value).padStart(2, "0")}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+type TabType = "semua" | "surat" | "pengaduan";
+
 export default function StatusScreen() {
-  const router = useRouter();
-  const [tab, setTab]               = useState<"pengajuan" | "pengaduan">("pengajuan");
+  const router  = useRouter();
+  const insets  = useSafeAreaInsets();
+
+  const [tab, setTab]               = useState<TabType>("semua");
   const [pengajuan, setPengajuan]   = useState<PengajuanItem[]>([]);
   const [pengaduan, setPengaduan]   = useState<PengaduanItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("semua");
 
   const fetchData = async () => {
     try {
@@ -113,230 +115,313 @@ export default function StatusScreen() {
         api.get("/api/pengajuan?per_page=50"),
         api.get("/api/pengaduan?per_page=50"),
       ]);
-      setPengajuan(ajRes.data.data ?? []);
+      setPengajuan(ajRes.data.data  ?? []);
       setPengaduan(aduRes.data.data ?? []);
-    } catch {
-      // silent
-    } finally {
+    } catch { /* silent */ } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useFocusEffect(useCallback(() => { setLoading(true); setFilterStatus("semua"); fetchData(); }, []));
+  useFocusEffect(useCallback(() => { setLoading(true); fetchData(); }, []));
 
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  // ── Stats ──
+  const stats = useMemo(() => {
+    const inProgress = pengajuan.filter(p => P_IN_PROGRESS.includes(p.status)).length
+                     + pengaduan.filter(a => A_IN_PROGRESS.includes(a.status)).length;
+    const selesai    = pengajuan.filter(p => ["selesai", "disetujui"].includes(p.status)).length
+                     + pengaduan.filter(a => a.status === "selesai").length;
+    return { inProgress, selesai };
+  }, [pengajuan, pengaduan]);
 
-  // Filter chips
-  const PENGAJUAN_FILTERS = ["semua", "menunggu", "diproses", "selesai", "ditolak_staff", "ditolak_kepala"];
-  const PENGADUAN_FILTERS = ["semua", "menunggu", "diproses", "selesai", "ditolak"];
+  // ── Unified feed ──
+  const feedAll = useMemo<FeedItem[]>(() => {
+    const aj: FeedItem[] = pengajuan.map(p => ({
+      key: `p_${p.id}`,
+      type: "pengajuan",
+      rawId: p.id,
+      typeLabel: "LAYANAN SURAT",
+      title: p.jenis_surat,
+      status: p.status,
+      tanggal: p.tanggal,
+      canDownload: p.status === "selesai" && !!p.url_surat,
+    }));
+    const adu: FeedItem[] = pengaduan.map(a => ({
+      key: `a_${a.id}`,
+      type: "pengaduan",
+      rawId: a.id,
+      typeLabel: "PENGADUAN",
+      title: a.judul,
+      status: a.status,
+      tanggal: a.tanggal,
+      canDownload: a.status === "selesai",
+    }));
+    return [...aj, ...adu].sort((a, b) => {
+      // keep order from server (by date desc approximation)
+      return a.tanggal > b.tanggal ? -1 : 1;
+    });
+  }, [pengajuan, pengaduan]);
 
-  const filters = tab === "pengajuan" ? PENGAJUAN_FILTERS : PENGADUAN_FILTERS;
+  const feedSurat  = useMemo(() => feedAll.filter(i => i.type === "pengajuan"), [feedAll]);
+  const feedAduan  = useMemo(() => feedAll.filter(i => i.type === "pengaduan"), [feedAll]);
 
-  const filteredPengajuan = filterStatus === "semua"
-    ? pengajuan
-    : pengajuan.filter((i) => i.status === filterStatus);
+  const activeFeed = tab === "semua" ? feedAll : tab === "surat" ? feedSurat : feedAduan;
 
-  const filteredPengaduan = filterStatus === "semua"
-    ? pengaduan
-    : pengaduan.filter((i) => i.status === filterStatus);
+  const goDetail = (item: FeedItem) => {
+    if (item.type === "pengajuan") router.push(`/pengajuan/${item.rawId}` as any);
+    else                           router.push(`/pengaduan/${item.rawId}` as any);
+  };
 
-  return (
-    <View style={styles.screen}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Riwayat & Status</Text>
-        <Text style={styles.headerSub}>Pantau semua pengajuan & pengaduan</Text>
-      </View>
+  // ─── Render item ─────────────────────────────────────────────────────────────
 
-      {/* ── Tab pengajuan / pengaduan ── */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === "pengajuan" && styles.tabBtnActive]}
-          onPress={() => { setTab("pengajuan"); setFilterStatus("semua"); }}
-        >
-          <Text style={[styles.tabBtnText, tab === "pengajuan" && styles.tabBtnTextActive]}>
-            📄 Pengajuan Surat
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === "pengaduan" && styles.tabBtnActive]}
-          onPress={() => { setTab("pengaduan"); setFilterStatus("semua"); }}
-        >
-          <Text style={[styles.tabBtnText, tab === "pengaduan" && styles.tabBtnTextActive]}>
-            📢 Pengaduan
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Filter chips ── */}
-      <FlatList
-        data={filters}
-        keyExtractor={(i) => i}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        renderItem={({ item: f }) => {
-          const label = f === "semua" ? "Semua"
-            : tab === "pengajuan"
-              ? (PENGAJUAN_STATUS[f]?.label ?? f)
-              : (PENGADUAN_STATUS[f]?.label ?? f);
-          return (
-            <TouchableOpacity
-              style={[styles.filterChip, filterStatus === f && styles.filterChipActive]}
-              onPress={() => setFilterStatus(f)}
-            >
-              <Text style={[styles.filterChipText, filterStatus === f && styles.filterChipTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-      />
-
-      {/* ── List ── */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4A90E2" />
+  const renderItem = ({ item }: { item: FeedItem }) => {
+    const statusMap = item.type === "pengajuan" ? P_STATUS : A_STATUS;
+    const isAduan   = item.type === "pengaduan";
+    return (
+      <TouchableOpacity style={s.card} onPress={() => goDetail(item)} activeOpacity={0.8}>
+        {/* top row */}
+        <View style={s.cardTop}>
+          <View style={[s.typeTag, isAduan && s.typeTagAduan]}>
+            <Ionicons
+              name={isAduan ? "megaphone-outline" : "document-text-outline"}
+              size={10}
+              color={isAduan ? "#7C3AED" : COLORS.primary}
+            />
+            <Text style={[s.typeTagText, isAduan && s.typeTagTextAduan]}>
+              {item.typeLabel}
+            </Text>
+          </View>
+          <Badge status={item.status} map={statusMap} />
         </View>
-      ) : tab === "pengajuan" ? (
-        filteredPengajuan.length === 0 ? (
-          <EmptyState icon="📄" text="Tidak ada pengajuan." />
-        ) : (
-          <FlatList
-            data={filteredPengajuan}
-            keyExtractor={(i) => String(i.id)}
-            contentContainerStyle={{ padding: 16 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A90E2" />}
-            renderItem={({ item }) => {
-              const cfg = PENGAJUAN_STATUS[item.status] ?? { warna: "#999", label: item.status, icon: "❓" };
-              return (
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={() => router.push(`/pengajuan/${item.id}` as any)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.cardTop}>
-                    <Text style={styles.cardNo}>{item.no_pengajuan}</Text>
-                    <View style={[styles.pill, { backgroundColor: cfg.warna + "22" }]}>
-                      <Text style={[styles.pillText, { color: cfg.warna }]}>
-                        {cfg.icon} {cfg.label}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.cardTitle}>{item.jenis_surat}</Text>
-                  <Text style={styles.cardDate}>Diajukan: {item.tanggal}</Text>
-                  <MiniTimeline status={item.status} />
-                  {item.catatan ? (
-                    <Text style={styles.catatan} numberOfLines={2}>📝 {item.catatan}</Text>
-                  ) : null}
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )
-      ) : (
-        filteredPengaduan.length === 0 ? (
-          <EmptyState icon="📢" text="Tidak ada pengaduan." />
-        ) : (
-          <FlatList
-            data={filteredPengaduan}
-            keyExtractor={(i) => String(i.id)}
-            contentContainerStyle={{ padding: 16 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A90E2" />}
-            renderItem={({ item }) => {
-              const cfg = PENGADUAN_STATUS[item.status] ?? { warna: "#999", label: item.status, icon: "❓" };
-              return (
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={() => router.push(`/pengaduan/${item.id}` as any)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.cardTop}>
-                    <Text style={styles.cardNo}>Pengaduan #{item.id}</Text>
-                    <View style={[styles.pill, { backgroundColor: cfg.warna + "22" }]}>
-                      <Text style={[styles.pillText, { color: cfg.warna }]}>
-                        {cfg.icon} {cfg.label}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.cardTitle}>{item.judul}</Text>
-                  <Text style={styles.cardDate}>Dilaporkan: {item.tanggal}</Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )
-      )}
+
+        {/* title */}
+        <Text style={s.cardTitle} numberOfLines={2}>{item.title}</Text>
+
+        {/* footer */}
+        <View style={s.cardFooter}>
+          <Ionicons name="calendar-outline" size={12} color={COLORS.textMuted} />
+          <Text style={s.cardDate}>{item.tanggal}</Text>
+          <TouchableOpacity
+            style={s.actionLink}
+            onPress={() => goDetail(item)}
+            activeOpacity={0.7}
+          >
+            {item.canDownload ? (
+              <>
+                <Text style={s.actionText}>Unduh Bukti</Text>
+                <Ionicons name="download-outline" size={13} color={COLORS.primary} />
+              </>
+            ) : (
+              <>
+                <Text style={s.actionText}>Detail</Text>
+                <Ionicons name="chevron-forward" size={13} color={COLORS.primary} />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ─── Header list component ────────────────────────────────────────────────
+
+  const ListHeader = () => (
+    <View style={s.statsRow}>
+      <StatCard
+        icon="time-outline"
+        value={stats.inProgress}
+        label="DALAM PROSES"
+        color={COLORS.primary}
+      />
+      <StatCard
+        icon="checkmark-circle-outline"
+        value={stats.selesai}
+        label="TELAH SELESAI"
+        color={COLORS.success}
+      />
     </View>
   );
-}
 
-function EmptyState({ icon, text }: { icon: string; text: string }) {
+  // ─── Main render ─────────────────────────────────────────────────────────────
+
   return (
-    <View style={styles.center}>
-      <Text style={{ fontSize: 42, marginBottom: 10 }}>{icon}</Text>
-      <Text style={{ fontSize: 14, color: "#aaa" }}>{text}</Text>
+    <View style={s.screen}>
+      {/* ── App Header ── */}
+      <View style={[s.header, { paddingTop: insets.top + SPACING.md }]}>
+        <Text style={s.headerTitle}>Status &amp; Riwayat</Text>
+        <TouchableOpacity style={s.searchBtn} activeOpacity={0.7}>
+          <Ionicons name="search-outline" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Tab bar (underline style) ── */}
+      <View style={s.tabBar}>
+        {(["semua", "surat", "pengaduan"] as TabType[]).map((t) => {
+          const labels = { semua: "SEMUA", surat: "SURAT", pengaduan: "PENGADUAN" };
+          return (
+            <TouchableOpacity
+              key={t}
+              style={[s.tabItem, tab === t && s.tabItemActive]}
+              onPress={() => setTab(t)}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
+                {labels[t]}
+              </Text>
+              {tab === t && <View style={s.tabUnderline} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* ── Content ── */}
+      {loading ? (
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : activeFeed.length === 0 ? (
+        <View style={s.emptyWrap}>
+          <ListHeader />
+          <View style={s.emptyBody}>
+            <Ionicons
+              name={tab === "pengaduan" ? "megaphone-outline" : "document-outline"}
+              size={44}
+              color="#CCCCCC"
+            />
+            <Text style={s.emptyTitle}>Belum ada riwayat.</Text>
+            <Text style={s.emptySub}>
+              {tab === "pengaduan"
+                ? "Laporan pengaduan Anda akan muncul di sini."
+                : "Pengajuan surat Anda akan muncul di sini."}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <FlatList
+          data={activeFeed}
+          keyExtractor={(i) => i.key}
+          contentContainerStyle={s.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); fetchData(); }}
+              tintColor={COLORS.primary}
+            />
+          }
+          ListHeaderComponent={<ListHeader />}
+          renderItem={renderItem}
+        />
+      )}
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: "#F5F5F5" },
-  center:  { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 60 },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
+  // Header
   header: {
-    backgroundColor: "#4A90E2",
-    paddingTop: 52,
-    paddingBottom: 18,
-    paddingHorizontal: 20,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
   },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
-  headerSub:   { fontSize: 13, color: "#CCE4FF", marginTop: 2 },
+  headerTitle: { fontSize: FONT.xxl, fontWeight: "800", color: COLORS.text },
+  searchBtn:   { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
 
-  tabRow: {
+  // Tab bar
+  tabBar: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 14,
-    backgroundColor: "#E8EEF6",
-    borderRadius: 10,
-    padding: 3,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1, borderBottomColor: COLORS.divider,
+    paddingHorizontal: SPACING.lg,
   },
-  tabBtn:         { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8 },
-  tabBtnActive:   { backgroundColor: "#fff", elevation: 2, shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 3 },
-  tabBtnText:     { fontSize: 12, fontWeight: "600", color: "#999" },
-  tabBtnTextActive: { color: "#4A90E2" },
-
-  filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#DDD",
+  tabItem: {
+    paddingVertical: SPACING.md, marginRight: SPACING.xl,
+    position: "relative",
   },
-  filterChipActive:    { backgroundColor: "#4A90E2", borderColor: "#4A90E2" },
-  filterChipText:      { fontSize: 12, color: "#666", fontWeight: "600" },
-  filterChipTextActive:{ color: "#fff" },
+  tabItemActive: {},
+  tabText: {
+    fontSize: FONT.sm, fontWeight: "700",
+    color: COLORS.textMuted, letterSpacing: 0.5,
+  },
+  tabTextActive: { color: COLORS.primary },
+  tabUnderline: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    height: 2, backgroundColor: COLORS.primary,
+    borderRadius: 1,
+  },
 
+  // Stats
+  statsRow: {
+    flexDirection: "row", gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  statCard: {
+    flex: 1, backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    padding: SPACING.lg, alignItems: "flex-start", ...SHADOW.sm,
+  },
+  statIconWrap: {
+    width: 40, height: 40, borderRadius: RADIUS.md,
+    justifyContent: "center", alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  statValue: { fontSize: FONT.xxxl, fontWeight: "800", color: COLORS.text, lineHeight: 30 },
+  statLabel: { fontSize: FONT.xs, fontWeight: "700", color: COLORS.textMuted, letterSpacing: 0.5, marginTop: 2 },
+
+  // List
+  listContent: { paddingBottom: SPACING.xl },
+
+  // Card
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md + 2,
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    ...SHADOW.sm,
   },
-  cardTop:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  cardNo:    { fontSize: 11, color: "#aaa", fontWeight: "600" },
-  cardTitle: { fontSize: 15, fontWeight: "600", color: "#222", marginBottom: 4 },
-  cardDate:  { fontSize: 12, color: "#999" },
-  catatan:   { fontSize: 12, color: "#666", marginTop: 6, fontStyle: "italic" },
-  pill:      { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  pillText:  { fontSize: 11, fontWeight: "700" },
+  cardTop: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", marginBottom: SPACING.sm,
+  },
+  typeTag: {
+    flexDirection: "row", alignItems: "center", gap: SPACING.xs,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: SPACING.sm, paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  typeTagAduan:     { backgroundColor: "#EDE9FE" },
+  typeTagText:      { fontSize: FONT.xs, fontWeight: "700", color: COLORS.primary, letterSpacing: 0.3 },
+  typeTagTextAduan: { color: "#7C3AED" },
+
+  badge:     { paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.sm },
+  badgeText: { fontSize: FONT.xs, fontWeight: "700" },
+
+  cardTitle: {
+    fontSize: FONT.xl, fontWeight: "700", color: COLORS.text,
+    lineHeight: 22, marginBottom: SPACING.md,
+  },
+  cardFooter: {
+    flexDirection: "row", alignItems: "center", gap: SPACING.xs,
+    borderTopWidth: 1, borderTopColor: COLORS.divider,
+    paddingTop: SPACING.sm,
+  },
+  cardDate:   { fontSize: FONT.sm, color: COLORS.textMuted, flex: 1 },
+  actionLink: { flexDirection: "row", alignItems: "center", gap: 3 },
+  actionText: { fontSize: FONT.sm, fontWeight: "700", color: COLORS.primary },
+
+  // Empty
+  emptyWrap: { flex: 1 },
+  emptyBody: {
+    flex: 1, justifyContent: "center", alignItems: "center",
+    gap: SPACING.sm, padding: SPACING.xxxl,
+  },
+  emptyTitle: { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text },
+  emptySub:   { fontSize: FONT.base, color: COLORS.textMuted, textAlign: "center" },
 });

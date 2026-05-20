@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             MasterSuratSeeder::class,
             KategoriAduanSeeder::class,
+            KontenDesaSeeder::class,
         ]);
     }
 }

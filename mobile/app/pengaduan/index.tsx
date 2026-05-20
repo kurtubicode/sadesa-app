@@ -3,37 +3,39 @@ import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import api from "@/lib/api";
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
-const STATUS_CONFIG: Record<string, { warna: string; label: string }> = {
-  menunggu:    { warna: "#FFC107", label: "Menunggu" },
-  diproses:    { warna: "#17A2B8", label: "Diproses" },
-  selesai:     { warna: "#28A745", label: "Selesai ✓" },
-  ditolak:     { warna: "#DC3545", label: "Ditolak" },
+// ─── Status config ────────────────────────────────────────────────────────────
+
+const STATUS_MAP: Record<string, { bg: string; text: string; label: string }> = {
+  menunggu: { bg: "#FEF3C7", text: "#92400E", label: "Menunggu" },
+  diproses: { bg: "#DBEAFE", text: "#1E40AF", label: "Diproses" },
+  selesai:  { bg: "#D1FAE5", text: "#065F46", label: "Selesai"  },
+  ditolak:  { bg: "#FEE2E2", text: "#991B1B", label: "Ditolak"  },
 };
 
 interface Aduan {
   id: number;
   judul: string;
-  kategori: string;
+  kategori?: string;
   status: string;
   tanggal: string;
 }
 
 export default function RiwayatPengaduanScreen() {
   const router = useRouter();
-  const [data, setData]         = useState<Aduan[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData]             = useState<Aduan[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
       const res = await api.get("/api/pengaduan");
       setData(res.data.data ?? res.data);
-    } catch {
-      // silent
-    } finally {
+    } catch { /* silent */ } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -42,46 +44,66 @@ export default function RiwayatPengaduanScreen() {
   useFocusEffect(useCallback(() => { setLoading(true); fetchData(); }, []));
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#007BFF" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
   }
 
   return (
     <View style={styles.screen}>
-      <TouchableOpacity style={styles.buatBtn} onPress={() => router.push("/pengaduan/buat")}>
-        <Text style={styles.buatBtnText}>＋  Buat Pengaduan Baru</Text>
+      {/* ── CTA ── */}
+      <TouchableOpacity
+        style={styles.ctaBtn}
+        onPress={() => router.push("/pengaduan/buat")}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="megaphone-outline" size={20} color={COLORS.white} />
+        <Text style={styles.ctaBtnText}>Buat Pengaduan Baru</Text>
       </TouchableOpacity>
 
       {data.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyIcon}>📣</Text>
+        <View style={styles.emptyWrap}>
+          <Ionicons name="megaphone-outline" size={44} color="#CCCCCC" />
           <Text style={styles.emptyText}>Belum ada pengaduan.</Text>
-          <Text style={styles.emptySubtext}>Tekan tombol di atas untuk membuat pengaduan.</Text>
+          <Text style={styles.emptySub}>Tekan tombol di atas untuk membuat laporan.</Text>
         </View>
       ) : (
         <FlatList
           data={data}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.primary} />
           }
           renderItem={({ item }) => {
-            const cfg = STATUS_CONFIG[item.status] ?? { warna: "#999", label: item.status };
+            const cfg = STATUS_MAP[item.status] ?? { bg: "#F3F4F6", text: "#374151", label: item.status };
             return (
               <TouchableOpacity
                 style={styles.card}
                 onPress={() => router.push(`/pengaduan/${item.id}` as any)}
                 activeOpacity={0.8}
               >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.kategori}>{item.kategori}</Text>
-                  <View style={[styles.badge, { backgroundColor: cfg.warna + "22" }]}>
-                    <Text style={[styles.badgeText, { color: cfg.warna }]}>{cfg.label}</Text>
+                <View style={styles.cardTop}>
+                  <Text style={styles.cardNo}>#{String(item.id).padStart(4, "0")}</Text>
+                  <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
+                    <Text style={[styles.badgeText, { color: cfg.text }]}>{cfg.label}</Text>
                   </View>
                 </View>
-                <Text style={styles.judul}>{item.judul}</Text>
-                <Text style={styles.tanggal}>Dilaporkan: {item.tanggal}</Text>
-                <Text style={styles.lihatDetail}>Lihat detail →</Text>
+                {item.kategori ? (
+                  <View style={styles.kategoriBadge}>
+                    <Ionicons name="pricetag-outline" size={11} color={COLORS.primary} />
+                    <Text style={styles.kategoriText}>{item.kategori}</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.judul}</Text>
+                <View style={styles.cardFooter}>
+                  <Ionicons name="calendar-outline" size={12} color={COLORS.textMuted} />
+                  <Text style={styles.cardDate}>{item.tanggal}</Text>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} style={{ marginLeft: "auto" }} />
+                </View>
               </TouchableOpacity>
             );
           }}
@@ -92,22 +114,44 @@ export default function RiwayatPengaduanScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: "#F0F2F5" },
-  center:       { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
-  buatBtn:      { backgroundColor: "#17A2B8", margin: 16, padding: 14, borderRadius: 10, alignItems: "center" },
-  buatBtnText:  { color: "#fff", fontWeight: "bold", fontSize: 15 },
-  emptyIcon:    { fontSize: 48, marginBottom: 12 },
-  emptyText:    { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 4 },
-  emptySubtext: { fontSize: 13, color: "#888", textAlign: "center" },
-  card: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 12,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  ctaBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: SPACING.sm, backgroundColor: "#E07B39",
+    margin: SPACING.lg, borderRadius: RADIUS.full, height: 50, ...SHADOW.md,
   },
-  cardHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  kategori:     { fontSize: 11, fontWeight: "700", color: "#17A2B8", textTransform: "uppercase" },
-  badge:        { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  badgeText:    { fontSize: 11, fontWeight: "700" },
-  judul:        { fontSize: 15, fontWeight: "600", color: "#222", marginBottom: 4 },
-  tanggal:      { fontSize: 12, color: "#999", marginBottom: 6 },
-  lihatDetail:  { fontSize: 12, color: "#4A90E2", fontWeight: "600" },
+  ctaBtnText: { color: COLORS.white, fontWeight: "700", fontSize: FONT.xl },
+
+  emptyWrap: { flex: 1, justifyContent: "center", alignItems: "center", gap: SPACING.sm, padding: SPACING.xxxl },
+  emptyText: { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text },
+  emptySub:  { fontSize: FONT.base, color: COLORS.textMuted, textAlign: "center" },
+
+  listContent: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+
+  card: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    padding: SPACING.lg, marginBottom: SPACING.md, ...SHADOW.sm,
+  },
+  cardTop: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", marginBottom: SPACING.sm,
+  },
+  cardNo: { fontSize: FONT.xs, color: COLORS.textMuted, fontWeight: "600" },
+
+  kategoriBadge: {
+    flexDirection: "row", alignItems: "center", gap: SPACING.xs,
+    alignSelf: "flex-start",
+    backgroundColor: COLORS.primaryLight, borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm, paddingVertical: 2, marginBottom: SPACING.xs,
+  },
+  kategoriText: { fontSize: FONT.xs, fontWeight: "700", color: COLORS.primary },
+
+  cardTitle:  { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text, lineHeight: 22, marginBottom: SPACING.sm },
+  cardFooter: { flexDirection: "row", alignItems: "center", gap: SPACING.xs },
+  cardDate:   { fontSize: FONT.sm, color: COLORS.textMuted },
+
+  badge:     { paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.sm },
+  badgeText: { fontSize: FONT.xs, fontWeight: "700" },
 });

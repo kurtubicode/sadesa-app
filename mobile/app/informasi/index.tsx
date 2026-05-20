@@ -3,40 +3,46 @@ import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import api from "@/lib/api";
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
-const TIPE_CONFIG: Record<string, { warna: string; label: string; icon: string }> = {
-  berita:       { warna: "#007BFF", label: "Berita",       icon: "📰" },
-  pengumuman:   { warna: "#FFC107", label: "Pengumuman",   icon: "📢" },
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Konten {
   id: number;
   judul: string;
   slug: string;
   tipe: string;
+  isi?: string;
   created_at: string;
 }
 
-function formatTanggal(isoDate: string): string {
+type FilterTipe = "semua" | "berita" | "pengumuman" | "agenda";
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const TIPE_MAP: Record<string, { bg: string; text: string; label: string }> = {
+  berita:     { bg: COLORS.primaryLight, text: COLORS.primary, label: "BERITA"     },
+  pengumuman: { bg: "#FEF3C7",           text: "#92400E",       label: "PENGUMUMAN" },
+  agenda:     { bg: "#F0FDF4",           text: "#166534",       label: "AGENDA"     },
+};
+
+function formatTanggal(iso: string) {
   try {
-    return new Date(isoDate).toLocaleDateString("id-ID", {
-      day: "numeric", month: "long", year: "numeric",
-    });
-  } catch {
-    return isoDate;
-  }
+    return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  } catch { return iso; }
 }
 
-type FilterTipe = "semua" | "berita" | "pengumuman";
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function InformasiDesaScreen() {
   const router = useRouter();
-  const [data, setData]         = useState<Konten[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData]             = useState<Konten[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter]     = useState<FilterTipe>("semua");
+  const [filter, setFilter]         = useState<FilterTipe>("semua");
 
   const fetchData = async () => {
     try {
@@ -54,57 +60,83 @@ export default function InformasiDesaScreen() {
 
   const filtered = filter === "semua" ? data : data.filter((d) => d.tipe === filter);
 
+  const FILTERS: { key: FilterTipe; label: string }[] = [
+    { key: "semua",     label: "Semua"     },
+    { key: "berita",    label: "Berita"    },
+    { key: "pengumuman",label: "Pengumuman"},
+    { key: "agenda",    label: "Agenda"    },
+  ];
+
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#007BFF" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
   }
 
   return (
     <View style={styles.screen}>
-      {/* ── Filter tabs ── */}
+      {/* ── Filter ── */}
       <View style={styles.filterRow}>
-        {(["semua", "berita", "pengumuman"] as FilterTipe[]).map((f) => (
+        {FILTERS.map((f) => (
           <TouchableOpacity
-            key={f}
-            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-            onPress={() => setFilter(f)}
+            key={f.key}
+            style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+            onPress={() => setFilter(f.key)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f === "semua" ? "Semua" : f === "berita" ? "📰 Berita" : "📢 Pengumuman"}
+            <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>
+              {f.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {/* ── List ── */}
       {filtered.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>📭</Text>
+          <Ionicons name="newspaper-outline" size={44} color="#CCCCCC" />
           <Text style={styles.emptyText}>Belum ada informasi.</Text>
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); fetchData(); }}
+              tintColor={COLORS.primary}
+            />
           }
           renderItem={({ item }) => {
-            const cfg = TIPE_CONFIG[item.tipe] ?? { warna: "#888", label: item.tipe, icon: "📄" };
+            const tc      = TIPE_MAP[item.tipe] ?? TIPE_MAP.berita;
+            const excerpt = item.isi?.replace(/<[^>]+>/g, "").slice(0, 90);
             return (
               <TouchableOpacity
                 style={styles.card}
                 onPress={() => router.push(`/informasi/${item.slug}` as any)}
                 activeOpacity={0.8}
               >
-                {/* Tipe badge */}
-                <View style={[styles.tipeBadge, { backgroundColor: cfg.warna + "18" }]}>
-                  <Text style={[styles.tipeBadgeText, { color: cfg.warna }]}>
-                    {cfg.icon}  {cfg.label}
-                  </Text>
+                {/* Thumbnail */}
+                <View style={styles.thumbnail}>
+                  <Ionicons name="image-outline" size={22} color="#CCCCCC" />
                 </View>
-                <Text style={styles.judul}>{item.judul}</Text>
-                <Text style={styles.tanggal}>{formatTanggal(item.created_at)}</Text>
+                <View style={styles.cardBody}>
+                  <View style={styles.cardMeta}>
+                    <View style={[styles.badge, { backgroundColor: tc.bg }]}>
+                      <Text style={[styles.badgeText, { color: tc.text }]}>{tc.label}</Text>
+                    </View>
+                    <Text style={styles.tanggal}>{formatTanggal(item.created_at)}</Text>
+                  </View>
+                  <Text style={styles.judul} numberOfLines={2}>{item.judul}</Text>
+                  {excerpt ? (
+                    <Text style={styles.excerpt} numberOfLines={2}>{excerpt}…</Text>
+                  ) : null}
+                </View>
               </TouchableOpacity>
             );
           }}
@@ -114,33 +146,45 @@ export default function InformasiDesaScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen:           { flex: 1, backgroundColor: "#F0F2F5" },
-  center:           { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+  screen:  { flex: 1, backgroundColor: COLORS.background },
+  center:  { flex: 1, justifyContent: "center", alignItems: "center", gap: SPACING.md, padding: SPACING.xxxl },
+  emptyText: { fontSize: FONT.base, color: COLORS.textMuted },
 
   // Filter
   filterRow: {
-    flexDirection: "row", backgroundColor: "#fff",
-    padding: 10, gap: 8,
-    shadowColor: "#000", shadowOpacity: 0.04, elevation: 2,
+    flexDirection: "row", backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
+    gap: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.divider,
   },
   filterBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 8,
-    backgroundColor: "#F0F2F5", alignItems: "center",
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.full, backgroundColor: COLORS.background,
+    borderWidth: 1, borderColor: COLORS.border,
   },
-  filterBtnActive:  { backgroundColor: "#007BFF" },
-  filterText:       { fontSize: 13, color: "#555", fontWeight: "600" },
-  filterTextActive: { color: "#fff" },
+  filterBtnActive:  { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterText:       { fontSize: FONT.sm, color: COLORS.textSecondary, fontWeight: "600" },
+  filterTextActive: { color: COLORS.white },
 
-  emptyIcon:    { fontSize: 48, marginBottom: 12 },
-  emptyText:    { fontSize: 16, fontWeight: "600", color: "#888" },
+  // List
+  listContent: { padding: SPACING.lg, gap: SPACING.md },
 
+  // Card
   card: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 12,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    overflow: "hidden", ...SHADOW.sm,
   },
-  tipeBadge:    { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8 },
-  tipeBadgeText:{ fontSize: 11, fontWeight: "700" },
-  judul:        { fontSize: 15, fontWeight: "700", color: "#111", marginBottom: 6, lineHeight: 22 },
-  tanggal:      { fontSize: 12, color: "#999" },
+  thumbnail: {
+    height: 130, backgroundColor: "#F0F0F0",
+    justifyContent: "center", alignItems: "center",
+  },
+  cardBody: { padding: SPACING.lg },
+  cardMeta: { flexDirection: "row", alignItems: "center", gap: SPACING.sm, marginBottom: SPACING.sm },
+  badge:     { paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: RADIUS.xs },
+  badgeText: { fontSize: FONT.xs, fontWeight: "700" },
+  tanggal:   { fontSize: FONT.sm, color: COLORS.textMuted },
+  judul:     { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text, lineHeight: 22, marginBottom: SPACING.xs },
+  excerpt:   { fontSize: FONT.base, color: COLORS.textSecondary, lineHeight: 18 },
 });

@@ -1,100 +1,139 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
-  FlatList,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, RefreshControl, Alert,
 } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { getUser, UserData } from "@/lib/userStorage";
 import api from "@/lib/api";
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface MasterSurat {
-  id: number;
-  nama: string;
-  kode: string;
-}
 
 interface InformasiItem {
   id: number;
   judul: string;
   slug: string;
   tipe: string;
+  isi?: string;
   created_at: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function maskNIK(nik: string | null | undefined): string {
-  if (!nik || nik.length < 8) return nik ?? "—";
-  return nik.slice(0, 4) + " •••• •••• " + nik.slice(-4);
+function timeAgo(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600)  return `${Math.floor(diff / 60)} menit yang lalu`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} jam yang lalu`;
+  if (diff < 604800)return `${Math.floor(diff / 86400)} hari yang lalu`;
+  return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function formatTgl(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "numeric", month: "short", year: "numeric",
-  });
+function formatTgl(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
 }
+
+function initials(name: string): string {
+  return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+}
+
+const TIPE_LABEL: Record<string, string> = {
+  berita:       "BERITA",
+  pengumuman:   "PENGUMUMAN",
+  agenda:       "AGENDA",
+};
+
+const TIPE_COLOR: Record<string, { bg: string; text: string }> = {
+  berita:     { bg: "#E8F0FB", text: COLORS.primary },
+  pengumuman: { bg: "#FEF3C7", text: "#92400E" },
+  agenda:     { bg: "#F0FDF4", text: "#166534" },
+};
 
 // ─── Sub-komponen ─────────────────────────────────────────────────────────────
 
-function LayananCard({ nama, kode, onPress }: { nama: string; kode: string; onPress: () => void }) {
+function QuickAction({
+  icon, label, color, onPress,
+}: {
+  icon: React.ReactNode; label: string; color?: string; onPress: () => void;
+}) {
   return (
-    <TouchableOpacity style={styles.layananCard} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.layananIconBox}>
-        <Text style={styles.layananIcon}>📄</Text>
+    <TouchableOpacity style={styles.qaItem} onPress={onPress} activeOpacity={0.75}>
+      <View style={[styles.qaIconBox, color ? { backgroundColor: color + "18" } : null]}>
+        {icon}
       </View>
-      <Text style={styles.layananKode}>{kode}</Text>
-      <Text style={styles.layananNama} numberOfLines={2}>{nama}</Text>
+      <Text style={styles.qaLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function InformasiCard({ item, onPress }: { item: InformasiItem; onPress: () => void }) {
-  const isBerita = item.tipe === "berita";
+function InformasiCardLarge({ item, onPress }: { item: InformasiItem; onPress: () => void }) {
+  const tc = TIPE_COLOR[item.tipe] ?? TIPE_COLOR.berita;
+  const excerpt = item.isi?.replace(/<[^>]+>/g, "").slice(0, 100);
+
   return (
-    <TouchableOpacity style={styles.infoCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.infoBadge, { backgroundColor: isBerita ? "#EBF4FD" : "#FFF8E6" }]}>
-        <Text style={[styles.infoBadgeText, { color: isBerita ? "#2078D4" : "#B07A00" }]}>
-          {isBerita ? "📰 Berita" : "📢 Pengumuman"}
-        </Text>
+    <TouchableOpacity style={styles.cardLarge} onPress={onPress} activeOpacity={0.85}>
+      {/* Thumbnail placeholder */}
+      <View style={styles.cardThumbnail}>
+        <Ionicons name="image-outline" size={28} color="#CCCCCC" />
       </View>
-      <Text style={styles.infoJudul} numberOfLines={2}>{item.judul}</Text>
-      <Text style={styles.infoTgl}>{formatTgl(item.created_at)}</Text>
+      <View style={styles.cardBody}>
+        <View style={styles.cardMeta}>
+          <View style={[styles.catBadge, { backgroundColor: tc.bg }]}>
+            <Text style={[styles.catBadgeText, { color: tc.text }]}>
+              {TIPE_LABEL[item.tipe] ?? item.tipe.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.cardTime}>{timeAgo(item.created_at)}</Text>
+        </View>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.judul}</Text>
+        {excerpt ? (
+          <Text style={styles.cardExcerpt} numberOfLines={2}>{excerpt}…</Text>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 }
 
-// ─── Screen utama ─────────────────────────────────────────────────────────────
+function InformasiCardSmall({ item, onPress }: { item: InformasiItem; onPress: () => void }) {
+  const tc = TIPE_COLOR[item.tipe] ?? TIPE_COLOR.agenda;
+
+  return (
+    <TouchableOpacity style={styles.cardSmall} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.cardSmallLeft}>
+        <View style={[styles.catBadge, { backgroundColor: tc.bg, marginBottom: SPACING.sm }]}>
+          <Text style={[styles.catBadgeText, { color: tc.text }]}>
+            {TIPE_LABEL[item.tipe] ?? item.tipe.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.judul}</Text>
+        <Text style={styles.cardTime}>{formatTgl(item.created_at)}</Text>
+      </View>
+      <View style={styles.cardSmallThumb}>
+        <Ionicons name="image-outline" size={22} color="#CCCCCC" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function BerandaScreen() {
   const router = useRouter();
-  const [user, setUser]                   = useState<UserData | null>(null);
-  const [masterSurat, setMasterSurat]     = useState<MasterSurat[]>([]);
-  const [informasi, setInformasi]         = useState<InformasiItem[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [refreshing, setRefreshing]       = useState(false);
+  const [user, setUser]         = useState<UserData | null>(null);
+  const [informasi, setInformasi] = useState<InformasiItem[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
     const u = await getUser();
     if (!u) { router.replace("/"); return; }
     setUser(u);
-
     try {
-      const [suratRes, infoRes] = await Promise.all([
-        api.get("/api/master-surat"),
-        api.get("/api/informasi?per_page=3"),
-      ]);
-      setMasterSurat(suratRes.data.data ?? suratRes.data ?? []);
-      setInformasi(infoRes.data.data ?? []);
+      const res = await api.get("/api/informasi?per_page=5");
+      setInformasi(res.data.data ?? []);
     } catch {
-      // gagal fetch, tampilkan data kosong
+      // tampilkan kosong
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,13 +141,12 @@ export default function BerandaScreen() {
   };
 
   useFocusEffect(useCallback(() => { setLoading(true); loadData(); }, []));
-
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Memuat beranda…</Text>
       </View>
     );
@@ -118,102 +156,92 @@ export default function BerandaScreen() {
     <ScrollView
       style={styles.screen}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A90E2" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
     >
-      {/* ── Hero ── */}
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initials(user?.name ?? "U")}</Text>
+          </View>
           <View>
-            <Text style={styles.heroGreeting}>Halo, {user?.name?.split(" ")[0]} 👋</Text>
-            <Text style={styles.heroSubtitle}>Selamat datang di SADESA</Text>
-          </View>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>🏛️</Text>
+            <Text style={styles.headerGreetLabel}>SELAMAT DATANG</Text>
+            <Text style={styles.headerGreetName}>Halo, {user?.name?.split(" ")[0]}</Text>
           </View>
         </View>
+        <TouchableOpacity style={styles.bellBtn}>
+          <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
 
-        {/* NIK card */}
-        <View style={styles.nikCard}>
-          <Text style={styles.nikLabel}>NIK</Text>
-          <Text style={styles.nikValue}>{maskNIK(user?.nik)}</Text>
-          <Text style={styles.nikDesc}>Desa Cirangkong · Kec. Cijambe</Text>
+      {/* ── Banner ── */}
+      <View style={styles.bannerWrap}>
+        <View style={styles.banner}>
+          {/* Background gradient effect */}
+          <View style={styles.bannerOverlay} />
+          <View style={styles.bannerContent}>
+            <Text style={styles.bannerTitle}>SADESA Digital</Text>
+            <Text style={styles.bannerSub}>Pusat Layanan Terpadu Desa Mandiri</Text>
+          </View>
         </View>
       </View>
 
-      {/* ── Aksi cepat ── */}
-      <View style={styles.aksiRow}>
-        <TouchableOpacity
-          style={[styles.aksiCard, { backgroundColor: "#4A90E2" }]}
+      {/* ── Aksi Cepat ── */}
+      <View style={styles.qaRow}>
+        <QuickAction
+          icon={<Ionicons name="document-text-outline" size={24} color={COLORS.primary} />}
+          label="BUAT SURAT"
+          color={COLORS.primary}
           onPress={() => router.push("/pengajuan/buat")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.aksiIcon}>📝</Text>
-          <Text style={styles.aksiLabel}>Ajukan Surat</Text>
-          <Text style={styles.aksiSub}>Buat pengajuan baru</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.aksiCard, { backgroundColor: "#E07B39" }]}
+        />
+        <QuickAction
+          icon={<Ionicons name="megaphone-outline" size={24} color="#E07B39" />}
+          label="LAPDR"
+          color="#E07B39"
           onPress={() => router.push("/pengaduan/buat")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.aksiIcon}>📢</Text>
-          <Text style={styles.aksiLabel}>Buat Pengaduan</Text>
-          <Text style={styles.aksiSub}>Sampaikan laporan</Text>
-        </TouchableOpacity>
+        />
+        <QuickAction
+          icon={<MaterialCommunityIcons name="qrcode-scan" size={24} color="#28A745" />}
+          label="SCAN TAMU"
+          color="#28A745"
+          onPress={() => Alert.alert("Segera Hadir", "Fitur Scan Tamu akan segera tersedia.")}
+        />
       </View>
 
-      {/* ── Layanan tersedia ── */}
-      {masterSurat.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Layanan Surat</Text>
-            <TouchableOpacity onPress={() => router.push("/pengajuan/buat")}>
-              <Text style={styles.sectionMore}>Ajukan →</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={masterSurat}
-            keyExtractor={(item) => String(item.id)}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
-            renderItem={({ item }) => (
-              <LayananCard
-                nama={item.nama}
-                kode={item.kode}
-                onPress={() => router.push("/pengajuan/buat")}
-              />
-            )}
-          />
-        </View>
-      )}
-
-      {/* ── Informasi desa ── */}
-      <View style={[styles.section, { paddingBottom: 32 }]}>
+      {/* ── Informasi Desa ── */}
+      <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Informasi Desa</Text>
           <TouchableOpacity onPress={() => router.push("/informasi" as any)}>
-            <Text style={styles.sectionMore}>Lihat semua →</Text>
+            <Text style={styles.sectionMore}>Lihat Semua</Text>
           </TouchableOpacity>
         </View>
 
         {informasi.length === 0 ? (
-          <View style={styles.emptyInfo}>
-            <Text style={styles.emptyInfoText}>Belum ada informasi terbaru.</Text>
+          <View style={styles.emptyCard}>
+            <Ionicons name="newspaper-outline" size={32} color="#CCCCCC" />
+            <Text style={styles.emptyText}>Belum ada informasi terbaru</Text>
           </View>
         ) : (
-          <View style={styles.infoList}>
-            {informasi.map((item) => (
-              <InformasiCard
-                key={item.id}
-                item={item}
-                onPress={() => router.push(`/informasi/${item.slug}` as any)}
-              />
+          <View style={styles.cardList}>
+            {informasi.map((item, idx) => (
+              item.tipe === "agenda"
+                ? <InformasiCardSmall
+                    key={item.id}
+                    item={item}
+                    onPress={() => router.push(`/informasi/${item.slug}` as any)}
+                  />
+                : <InformasiCardLarge
+                    key={item.id}
+                    item={item}
+                    onPress={() => router.push(`/informasi/${item.slug}` as any)}
+                  />
             ))}
           </View>
         )}
       </View>
+
+      <View style={{ height: SPACING.xxxl }} />
     </ScrollView>
   );
 }
@@ -221,106 +249,110 @@ export default function BerandaScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen:           { flex: 1, backgroundColor: "#F5F5F5" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F5F5F5" },
-  loadingText:      { marginTop: 12, color: "#888", fontSize: 14 },
+  screen:       { flex: 1, backgroundColor: COLORS.background },
+  loadingWrap:  { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
+  loadingText:  { marginTop: SPACING.md, color: COLORS.textMuted, fontSize: FONT.base },
 
-  // Hero
-  hero: {
-    backgroundColor: "#4A90E2",
-    paddingTop: 52,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+  // Header
+  header: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.xxxl, paddingBottom: SPACING.lg,
+    backgroundColor: COLORS.white,
   },
-  heroTop: {
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: SPACING.md },
+  avatarCircle: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center", alignItems: "center",
+  },
+  avatarText:       { fontSize: FONT.md, fontWeight: "700", color: COLORS.primary },
+  headerGreetLabel: { fontSize: FONT.xs, color: COLORS.textMuted, fontWeight: "600", letterSpacing: 0.8 },
+  headerGreetName:  { fontSize: FONT.xxl, fontWeight: "700", color: COLORS.text },
+  bellBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+
+  // Banner
+  bannerWrap: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.lg, backgroundColor: COLORS.white },
+  banner: {
+    borderRadius: RADIUS.xl, overflow: "hidden", height: 130,
+    backgroundColor: COLORS.primary, ...SHADOW.md,
+  },
+  bannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,30,80,0.35)",
+  },
+  bannerContent: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    padding: SPACING.xl,
+  },
+  bannerTitle: { fontSize: FONT.xxl, fontWeight: "800", color: COLORS.white, marginBottom: 2 },
+  bannerSub:   { fontSize: FONT.base, color: "rgba(255,255,255,0.85)" },
+
+  // Quick Actions
+  qaRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
   },
-  heroGreeting: { fontSize: 22, fontWeight: "bold", color: "#fff" },
-  heroSubtitle: { fontSize: 13, color: "#CCE4FF", marginTop: 2 },
-  logoBox:      { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
-  logoText:     { fontSize: 22 },
-
-  nikCard: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+  qaItem:    { flex: 1, alignItems: "center", gap: SPACING.sm },
+  qaIconBox: {
+    width: 52, height: 52, borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center", alignItems: "center",
   },
-  nikLabel: { fontSize: 11, color: "#CCE4FF", fontWeight: "600", letterSpacing: 1, marginBottom: 4 },
-  nikValue: { fontSize: 18, color: "#fff", fontWeight: "700", letterSpacing: 2, marginBottom: 2 },
-  nikDesc:  { fontSize: 12, color: "#a8ccf0" },
-
-  // Aksi cepat
-  aksiRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  aksiCard: {
-    flex: 1,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  aksiIcon:  { fontSize: 28, marginBottom: 8 },
-  aksiLabel: { fontSize: 14, fontWeight: "700", color: "#fff", marginBottom: 2 },
-  aksiSub:   { fontSize: 11, color: "rgba(255,255,255,0.8)" },
+  qaLabel: { fontSize: FONT.xs, fontWeight: "700", color: COLORS.text, letterSpacing: 0.3, textAlign: "center" },
 
   // Section
-  section:       { marginTop: 20 },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 },
-  sectionTitle:  { fontSize: 16, fontWeight: "700", color: "#222" },
-  sectionMore:   { fontSize: 13, color: "#4A90E2", fontWeight: "600" },
+  section:       { paddingTop: SPACING.xl },
+  sectionHeader: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: SPACING.lg, marginBottom: SPACING.md,
+  },
+  sectionTitle: { fontSize: FONT.xxl, fontWeight: "700", color: COLORS.text },
+  sectionMore:  { fontSize: FONT.md, color: COLORS.primary, fontWeight: "600" },
 
-  // Layanan card
-  layananCard: {
-    width: 110,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  layananIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EBF4FD",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  layananIcon: { fontSize: 20 },
-  layananKode: { fontSize: 10, color: "#4A90E2", fontWeight: "700", marginBottom: 2 },
-  layananNama: { fontSize: 11, color: "#444", textAlign: "center", lineHeight: 14 },
+  cardList: { paddingHorizontal: SPACING.lg, gap: SPACING.md },
 
-  // Informasi
-  infoList:      { paddingHorizontal: 16, gap: 10 },
-  emptyInfo:     { marginHorizontal: 16, padding: 16, backgroundColor: "#fff", borderRadius: 12, alignItems: "center" },
-  emptyInfoText: { color: "#aaa", fontSize: 13 },
-  infoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  // Card Large (berita / pengumuman)
+  cardLarge: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.xl, overflow: "hidden",
+    ...SHADOW.sm,
   },
-  infoBadge:     { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginBottom: 8 },
-  infoBadgeText: { fontSize: 11, fontWeight: "700" },
-  infoJudul:     { fontSize: 14, fontWeight: "600", color: "#222", lineHeight: 20, marginBottom: 4 },
-  infoTgl:       { fontSize: 12, color: "#999" },
+  cardThumbnail: {
+    height: 150, backgroundColor: "#F0F0F0",
+    justifyContent: "center", alignItems: "center",
+  },
+  cardBody:    { padding: SPACING.lg },
+  cardMeta:    { flexDirection: "row", alignItems: "center", gap: SPACING.md, marginBottom: SPACING.sm },
+  cardTime:    { fontSize: FONT.sm, color: COLORS.textMuted },
+  cardTitle:   { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text, lineHeight: 24, marginBottom: SPACING.sm },
+  cardExcerpt: { fontSize: FONT.base, color: COLORS.textSecondary, lineHeight: 20 },
+
+  // Card Small (agenda)
+  cardSmall: {
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    flexDirection: "row", alignItems: "center",
+    padding: SPACING.lg, gap: SPACING.md, ...SHADOW.sm,
+  },
+  cardSmallLeft:  { flex: 1 },
+  cardSmallThumb: {
+    width: 70, height: 70, borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center", alignItems: "center", flexShrink: 0,
+  },
+
+  // Category badge
+  catBadge: { alignSelf: "flex-start", paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.sm },
+  catBadgeText: { fontSize: FONT.xs, fontWeight: "700" },
+
+  // Empty
+  emptyCard: {
+    marginHorizontal: SPACING.lg, padding: SPACING.xxl,
+    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
+    alignItems: "center", gap: SPACING.sm, ...SHADOW.sm,
+  },
+  emptyText: { fontSize: FONT.base, color: COLORS.textMuted },
 });
