@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, FileText, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Download, FileText, Upload, User } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -14,24 +14,35 @@ interface PengajuanDetail {
     updated_at: string;
     user?: { id: number; name: string; nik: string | null; email: string; phone: string | null } | null;
     master_surat?: { id: number; nama: string; kode: string; persyaratan: string | null } | null;
-    dokumen_persyaratan?: { id: number; nama_file: string; tipe: string; created_at: string }[];
+    dokumen_persyaratan?: { id: number; nama_file: string; path_file: string; jenis_dokumen: string; created_at: string }[];
     verifikasi_berkas?: { catatan: string | null; staff: { name: string } | null; created_at: string } | null;
     pengesahan_permohonan?: { catatan: string | null; kepala_desa: { name: string } | null; created_at: string } | null;
+    surat_output?: { id: number; no_surat: string; path_file: string; tanggal_surat: string; created_at: string } | null;
 }
 
 interface Props { pengajuan: PengajuanDetail }
 
 const STATUS_LABEL: Record<string, string> = {
+    menunggu:            'Menunggu',
+    diproses:            'Diproses',
+    diverifikasi:        'Diverifikasi',
     menunggu_pengesahan: 'Menunggu Pengesahan',
-    disetujui:           'Disetujui',
+    disetujui:           'Disetujui — Menunggu Upload Surat',
     ditolak_kepala:      'Ditolak',
+    ditolak_staff:       'Ditolak Petugas',
     selesai:             'Selesai',
+    dibatalkan:          'Dibatalkan',
 };
 const STATUS_COLOR: Record<string, string> = {
-    menunggu_pengesahan: 'bg-purple-100 text-purple-700',
-    disetujui:           'bg-green-100 text-green-700',
+    menunggu:            'bg-yellow-100 text-yellow-700',
+    diproses:            'bg-blue-100 text-blue-700',
+    diverifikasi:        'bg-purple-100 text-purple-700',
+    menunggu_pengesahan: 'bg-violet-100 text-violet-700',
+    disetujui:           'bg-amber-100 text-amber-700',
     ditolak_kepala:      'bg-red-100 text-red-700',
+    ditolak_staff:       'bg-red-100 text-red-700',
     selesai:             'bg-teal-100 text-teal-700',
+    dibatalkan:          'bg-gray-100 text-gray-600',
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -107,13 +118,137 @@ function FormPengesahan({ pengajuanId }: { pengajuanId: number }) {
     );
 }
 
+// ─── Form Upload Surat ────────────────────────────────────────────────────────
+
+function FormUploadSurat({ pengajuanId }: { pengajuanId: number }) {
+    const form = useForm<{ file: File | null; no_surat: string; tanggal_surat: string }>({
+        file: null,
+        no_surat: '',
+        tanggal_surat: new Date().toISOString().slice(0, 10),
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        form.post(`/kepala-desa/pengajuan/${pengajuanId}/surat`, {
+            forceFormData: true,
+        });
+    };
+
+    return (
+        <div className="rounded-xl border-2 border-dashed border-teal-300 bg-teal-50 p-5 dark:border-teal-700 dark:bg-teal-900/20">
+            <h4 className="mb-1 flex items-center gap-2 font-semibold text-teal-800 dark:text-teal-300">
+                <Upload className="h-4 w-4" />
+                Upload Surat Resmi
+            </h4>
+            <p className="mb-4 text-xs text-teal-700 dark:text-teal-400">
+                Upload PDF surat yang sudah ditandatangani. Status akan otomatis berubah menjadi <strong>Selesai</strong>.
+            </p>
+
+            <form onSubmit={submit} className="space-y-3">
+                {/* Nomor Surat */}
+                <div>
+                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
+                        Nomor Surat <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        value={form.data.no_surat}
+                        onChange={e => form.setData('no_surat', e.target.value)}
+                        placeholder="Contoh: 474/001/DS/V/2026"
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
+                    />
+                    {form.errors.no_surat && <p className="mt-1 text-xs text-red-500">{form.errors.no_surat}</p>}
+                </div>
+
+                {/* Tanggal Surat */}
+                <div>
+                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
+                        Tanggal Surat <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="date"
+                        value={form.data.tanggal_surat}
+                        onChange={e => form.setData('tanggal_surat', e.target.value)}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
+                    />
+                    {form.errors.tanggal_surat && <p className="mt-1 text-xs text-red-500">{form.errors.tanggal_surat}</p>}
+                </div>
+
+                {/* File PDF */}
+                <div>
+                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
+                        File PDF Surat <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={e => form.setData('file', e.target.files?.[0] ?? null)}
+                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
+                    />
+                    {form.errors.file && <p className="mt-1 text-xs text-red-500">{form.errors.file}</p>}
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={form.processing || !form.data.file}
+                    className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                >
+                    {form.processing ? 'Mengupload…' : '⬆ Upload & Selesaikan Pengajuan'}
+                </button>
+            </form>
+        </div>
+    );
+}
+
+// ─── Surat Output Card ────────────────────────────────────────────────────────
+
+function SuratOutputCard({ suratOutput }: {
+    suratOutput: NonNullable<PengajuanDetail['surat_output']>;
+}) {
+    return (
+        <div className="rounded-xl border border-teal-200 bg-teal-50 p-5 dark:border-teal-700 dark:bg-teal-900/20">
+            <h4 className="mb-3 flex items-center gap-2 font-semibold text-teal-800 dark:text-teal-300">
+                <CheckCircle className="h-4 w-4" />
+                Surat Resmi Diterbitkan
+            </h4>
+            <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Nomor Surat</span>
+                    <span className="font-mono font-semibold text-foreground">{suratOutput.no_surat}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tanggal</span>
+                    <span className="font-medium text-foreground">
+                        {new Date(suratOutput.tanggal_surat).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Diupload</span>
+                    <span className="text-foreground">{new Date(suratOutput.created_at).toLocaleString('id-ID')}</span>
+                </div>
+            </div>
+            <a
+                href={`/storage/${suratOutput.path_file}`}
+                target="_blank"
+                rel="noopener"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-400 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100 dark:text-teal-300 dark:hover:bg-teal-900/40"
+            >
+                <Download className="h-4 w-4" />
+                Unduh Surat PDF
+            </a>
+        </div>
+    );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function KepalaPengajuanDetail({ pengajuan }: Props) {
     const cfg   = STATUS_COLOR[pengajuan.status] ?? 'bg-muted text-muted-foreground';
     const label = STATUS_LABEL[pengajuan.status] ?? pengajuan.status;
 
-    const bisaDisahkan = pengajuan.status === 'menunggu_pengesahan';
+    const bisaDisahkan  = pengajuan.status === 'menunggu_pengesahan';
+    const bisaUpload    = pengajuan.status === 'disetujui' && !pengajuan.surat_output;
+    const sudahSelesai  = pengajuan.status === 'selesai' && !!pengajuan.surat_output;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -183,7 +318,7 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
                                     {pengajuan.dokumen_persyaratan.map(dok => (
                                         <li key={dok.id} className="flex items-center gap-3 rounded-lg border p-3">
                                             <span className="text-lg">
-                                                {dok.tipe?.includes('pdf') ? '📄' : '🖼️'}
+                                                {dok.path_file?.endsWith('.pdf') || dok.jenis_dokumen?.toLowerCase().includes('pdf') ? '📄' : '🖼️'}
                                             </span>
                                             <div className="flex-1">
                                                 <p className="text-sm font-medium text-foreground">{dok.nama_file}</p>
@@ -192,7 +327,7 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
                                                 </p>
                                             </div>
                                             <a
-                                                href={`/storage/${dok.nama_file}`}
+                                                href={`/storage/${dok.path_file}`}
                                                 target="_blank"
                                                 rel="noopener"
                                                 className="rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"
@@ -255,7 +390,17 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
                             </div>
                         )}
 
-                        {!bisaDisahkan && !pengajuan.pengesahan_permohonan && (
+                        {/* Upload surat setelah disetujui */}
+                        {bisaUpload && (
+                            <FormUploadSurat pengajuanId={pengajuan.id} />
+                        )}
+
+                        {/* Tampilkan surat output yang sudah ada */}
+                        {sudahSelesai && pengajuan.surat_output && (
+                            <SuratOutputCard suratOutput={pengajuan.surat_output} />
+                        )}
+
+                        {!bisaDisahkan && !bisaUpload && !sudahSelesai && !pengajuan.pengesahan_permohonan && (
                             <div className="rounded-xl border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
                                 Pengajuan ini belum siap untuk disahkan.
                             </div>

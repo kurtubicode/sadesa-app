@@ -9,6 +9,7 @@ use App\Models\Notifikasi;
 use App\Models\PengajuanSurat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PengajuanSuratController extends Controller
 {
@@ -59,6 +60,7 @@ class PengajuanSuratController extends Controller
             'dokumenPersyaratan',
             'verifikasiBerkas.staff:id,name',
             'pengesahanPermohonan.kepalaDesa:id,name',
+            'suratOutput:id,pengajuan_id,no_surat,path_file,tanggal_surat',
         ])
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -70,6 +72,24 @@ class PengajuanSuratController extends Controller
             'url'       => $d->path_file ? asset('storage/' . $d->path_file) : null,
         ]);
 
+        // Riwayat status (dari verifikasi & pengesahan log)
+        $riwayat = collect();
+        $riwayat->push(['status' => 'menunggu', 'waktu' => $pengajuan->created_at->format('d M Y · H:i'), 'catatan' => null]);
+        if ($pengajuan->verifikasiBerkas) {
+            $vb = $pengajuan->verifikasiBerkas;
+            $riwayat->push(['status' => 'diverifikasi', 'waktu' => $vb->created_at->format('d M Y · H:i'), 'catatan' => $vb->catatan]);
+        }
+        if (in_array($pengajuan->status, ['diproses', 'menunggu_pengesahan', 'disetujui', 'selesai'])) {
+            $riwayat->push(['status' => 'diproses', 'waktu' => $pengajuan->updated_at->format('d M Y · H:i'), 'catatan' => $pengajuan->catatan]);
+        }
+        if ($pengajuan->pengesahanPermohonan) {
+            $pp = $pengajuan->pengesahanPermohonan;
+            $riwayat->push(['status' => 'menunggu_pengesahan', 'waktu' => $pp->created_at->format('d M Y · H:i'), 'catatan' => $pp->catatan]);
+        }
+        if ($pengajuan->status === 'selesai' && $pengajuan->suratOutput) {
+            $riwayat->push(['status' => 'selesai', 'waktu' => $pengajuan->suratOutput->created_at->format('d M Y · H:i'), 'catatan' => null]);
+        }
+
         return response()->json([
             'data' => [
                 'id'           => $pengajuan->id,
@@ -79,8 +99,13 @@ class PengajuanSuratController extends Controller
                 'status'       => $pengajuan->status,
                 'catatan'      => $pengajuan->catatan,
                 'keterangan'   => $pengajuan->data_formulir['keterangan'] ?? null,
-                'tanggal'      => $pengajuan->created_at->format('d/m/Y'),
+                'tanggal'      => $pengajuan->created_at->format('d M Y'),
                 'dokumen'      => $dokumen,
+                'riwayat'      => $riwayat->values(),
+                'url_surat'    => $pengajuan->suratOutput?->path_file
+                                    ? asset('storage/' . $pengajuan->suratOutput->path_file)
+                                    : null,
+                'no_surat'     => $pengajuan->suratOutput?->no_surat,
             ],
         ]);
     }
@@ -154,9 +179,9 @@ class PengajuanSuratController extends Controller
         $pengajuan = PengajuanSurat::where('user_id', $request->user()->id)
             ->findOrFail($id);
 
-        if ($pengajuan->status !== 'menunggu') {
+        if (! in_array($pengajuan->status, ['menunggu', 'diverifikasi'])) {
             return response()->json([
-                'message' => 'Pengajuan tidak dapat dibatalkan karena sudah diproses.',
+                'message' => 'Pengajuan tidak dapat dibatalkan karena sudah diproses lebih lanjut.',
             ], 422);
         }
 

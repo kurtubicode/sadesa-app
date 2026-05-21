@@ -91,6 +91,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('pengajuan',                                 [KepalaPengajuanController::class, 'index'])->name('pengajuan');
         Route::get('pengajuan/{pengajuan}',                     [KepalaPengajuanController::class, 'show'])->name('pengajuan.show');
         Route::patch('pengajuan/{pengajuan}/pengesahan',        [KepalaPengajuanController::class, 'pengesahan'])->name('pengajuan.pengesahan');
+        Route::post('pengajuan/{pengajuan}/surat',              [KepalaPengajuanController::class, 'uploadSurat'])->name('pengajuan.surat');
     });
 });
 

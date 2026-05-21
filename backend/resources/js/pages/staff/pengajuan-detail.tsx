@@ -14,7 +14,7 @@ interface PengajuanDetail {
     updated_at: string;
     user?: { id: number; name: string; nik: string | null; email: string; phone: string | null } | null;
     master_surat?: { id: number; nama: string; kode: string; persyaratan: string | null } | null;
-    dokumen_persyaratan?: { id: number; nama_file: string; tipe: string; created_at: string }[];
+    dokumen_persyaratan?: { id: number; nama_file: string; path_file: string; jenis_dokumen: string; created_at: string }[];
     verifikasi_berkas?: { catatan: string | null; staff: { name: string } | null; created_at: string } | null;
 }
 
@@ -195,7 +195,7 @@ export default function StaffPengajuanDetail({ pengajuan }: Props) {
                                     {pengajuan.dokumen_persyaratan.map(dok => (
                                         <li key={dok.id} className="flex items-center gap-3 rounded-lg border p-3">
                                             <span className="text-lg">
-                                                {dok.tipe?.includes('pdf') ? '📄' : '🖼️'}
+                                                {dok.path_file?.endsWith('.pdf') || dok.jenis_dokumen?.toLowerCase().includes('pdf') ? '📄' : '🖼️'}
                                             </span>
                                             <div className="flex-1">
                                                 <p className="text-sm font-medium text-foreground">{dok.nama_file}</p>
@@ -204,7 +204,7 @@ export default function StaffPengajuanDetail({ pengajuan }: Props) {
                                                 </p>
                                             </div>
                                             <a
-                                                href={`/storage/${dok.nama_file}`}
+                                                href={`/storage/${dok.path_file}`}
                                                 target="_blank"
                                                 rel="noopener"
                                                 className="rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"

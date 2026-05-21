@@ -52,7 +52,7 @@ class StaffPengajuanController extends Controller
         $pengajuan->load([
             'user:id,name,nik,email,phone',
             'masterSurat:id,nama_surat,kode,persyaratan',
-            'dokumenPersyaratan:id,pengajuan_id,nama_file,tipe,created_at',
+            'dokumenPersyaratan:id,pengajuan_id,nama_file,path_file,jenis_dokumen,created_at',
             'verifikasiBerkas.staff:id,name',
         ]);
 
@@ -66,23 +66,24 @@ class StaffPengajuanController extends Controller
     public function verifikasi(Request $request, PengajuanSurat $pengajuan): RedirectResponse
     {
         $request->validate([
-            'action'  => ['required', Rule::in(['setujui', 'tolak'])],
+            'action'  => ['required', Rule::in(['setujui', 'tolak', 'revisi'])],
             'catatan' => ['nullable', 'string', 'max:1000'],
         ]);
 
         // Pastikan pengajuan ada di status yang bisa diverifikasi staff
-        if (! in_array($pengajuan->status, ['menunggu', 'diproses'])) {
+        if (! in_array($pengajuan->status, ['menunggu', 'diproses', 'diverifikasi'])) {
             return back()->withErrors(['action' => 'Pengajuan ini tidak dapat diverifikasi.']);
         }
 
         $action  = $request->action;
         $catatan = $request->catatan;
 
-        if ($action === 'setujui') {
-            $newStatus = 'menunggu_pengesahan';
-        } else {
-            $newStatus = 'ditolak_staff';
-        }
+        $newStatus = match ($action) {
+            'setujui' => 'menunggu_pengesahan',
+            'tolak'   => 'ditolak_staff',
+            'revisi'  => 'diverifikasi',   // kembalikan ke warga untuk perbaikan dokumen
+            default   => 'diproses',
+        };
 
         // Update status pengajuan
         $pengajuan->update([
@@ -108,9 +109,12 @@ class StaffPengajuanController extends Controller
             ['status_baru' => $newStatus, 'catatan' => $catatan]
         );
 
-        $pesan = $action === 'setujui'
-            ? 'Pengajuan berhasil diverifikasi dan diteruskan ke Kepala Desa.'
-            : 'Pengajuan ditolak.';
+        $pesan = match ($action) {
+            'setujui' => 'Pengajuan berhasil diverifikasi dan diteruskan ke Kepala Desa.',
+            'tolak'   => 'Pengajuan ditolak.',
+            'revisi'  => 'Pengajuan dikembalikan ke pemohon untuk perbaikan dokumen.',
+            default   => 'Status pengajuan diperbarui.',
+        };
 
         return redirect('/staff/pengajuan')->with('success', $pesan);
     }

@@ -15,7 +15,7 @@ interface PengajuanDetail {
     updated_at: string;
     user?: { id: number; name: string; nik: string | null; email: string; phone: string | null } | null;
     master_surat?: { id: number; nama: string; kode: string; persyaratan: string | null } | null;
-    dokumen_persyaratan?: { id: number; nama_file: string; tipe: string; created_at: string }[];
+    dokumen_persyaratan?: { id: number; nama_file: string; path_file: string; jenis_dokumen: string; created_at: string }[];
     verifikasi_berkas?: { catatan: string | null; staff: { name: string } | null; created_at: string } | null;
     pengesahan_permohonan?: { catatan: string | null; kepala_desa: { name: string } | null; created_at: string } | null;
 }
@@ -107,7 +107,7 @@ export default function AdminPengajuanDetail({ pengajuan }: Props) {
                                 <ul className="space-y-2">
                                     {pengajuan.dokumen_persyaratan.map(dok => (
                                         <li key={dok.id} className="flex items-center gap-3 rounded-lg border p-3">
-                                            <span className="text-lg">{dok.tipe?.includes('pdf') ? '📄' : '🖼️'}</span>
+                                            <span className="text-lg">{dok.path_file?.endsWith('.pdf') || dok.jenis_dokumen?.toLowerCase().includes('pdf') ? '📄' : '🖼️'}</span>
                                             <div>
                                                 <p className="text-sm font-medium text-foreground">{dok.nama_file}</p>
                                                 <p className="text-xs text-muted-foreground">{new Date(dok.created_at).toLocaleDateString('id-ID')}</p>

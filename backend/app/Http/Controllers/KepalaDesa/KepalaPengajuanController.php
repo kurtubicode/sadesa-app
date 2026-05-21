@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\PengajuanSurat;
 use App\Models\PengesahanPermohonan;
+use App\Models\SuratOutput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,9 +54,10 @@ class KepalaPengajuanController extends Controller
         $pengajuan->load([
             'user:id,name,nik,email,phone',
             'masterSurat:id,nama_surat,kode,persyaratan',
-            'dokumenPersyaratan:id,pengajuan_id,nama_file,tipe,created_at',
+            'dokumenPersyaratan:id,pengajuan_id,nama_file,path_file,jenis_dokumen,created_at',
             'verifikasiBerkas.staff:id,name',
             'pengesahanPermohonan.kepalaDesa:id,name',
+            'suratOutput:id,pengajuan_id,no_surat,path_file,tanggal_surat,created_at',
         ]);
 
         return Inertia::render('kepala-desa/pengajuan-detail', [
@@ -105,9 +108,55 @@ class KepalaPengajuanController extends Controller
         );
 
         $pesan = $action === 'setujui'
-            ? 'Pengajuan berhasil disetujui.'
+            ? 'Pengajuan berhasil disetujui. Silakan upload surat yang sudah ditandatangani.'
             : 'Pengajuan ditolak.';
 
-        return redirect('/kepala-desa/pengajuan')->with('success', $pesan);
+        return redirect("/kepala-desa/pengajuan/{$pengajuan->id}")->with('success', $pesan);
+    }
+
+    // ─── Upload Surat Output ──────────────────────────────────────────────────
+
+    /**
+     * POST /kepala-desa/pengajuan/{pengajuan}/surat
+     * Upload PDF surat yang sudah ditandatangani → status menjadi selesai.
+     */
+    public function uploadSurat(Request $request, PengajuanSurat $pengajuan): RedirectResponse
+    {
+        if ($pengajuan->status !== 'disetujui') {
+            return back()->withErrors(['file' => 'Surat hanya dapat diupload setelah pengajuan disetujui.']);
+        }
+
+        $request->validate([
+            'file'          => 'required|file|mimes:pdf|max:10240',
+            'no_surat'      => 'required|string|max:100',
+            'tanggal_surat' => 'required|date',
+        ]);
+
+        // Hapus surat lama jika ada
+        if ($pengajuan->suratOutput) {
+            Storage::disk('public')->delete($pengajuan->suratOutput->path_file);
+            $pengajuan->suratOutput->delete();
+        }
+
+        $path = $request->file('file')->store("surat-output/{$pengajuan->id}", 'public');
+
+        SuratOutput::create([
+            'pengajuan_id'  => $pengajuan->id,
+            'no_surat'      => $request->no_surat,
+            'path_file'     => $path,
+            'tanggal_surat' => $request->tanggal_surat,
+        ]);
+
+        // Set status pengajuan → selesai
+        $pengajuan->update(['status' => 'selesai']);
+
+        AuditLog::catat(
+            'upload_surat_output',
+            'PengajuanSurat',
+            $pengajuan->id,
+            ['no_surat' => $request->no_surat, 'path_file' => $path]
+        );
+
+        return back()->with('success', 'Surat berhasil diupload. Status pengajuan sekarang Selesai.');
     }
 }
