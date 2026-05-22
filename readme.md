@@ -1,6 +1,6 @@
-# SADESA — Sistem Administrasi Desa Cirangkong
+# SADESA — Sahabat Digital Desa Cirangkong
 
-Sistem informasi dan administrasi terpadu untuk pelayanan warga Desa Cirangkong. Monorepo yang memisahkan **web dashboard** (admin/staff/kepala desa) dan **aplikasi mobile** (warga).
+Platform digital terpadu untuk pelayanan warga Desa Cirangkong. Monorepo yang memisahkan **web dashboard** (admin/staff/kepala desa) dan **aplikasi mobile** (warga).
 
 ---
 

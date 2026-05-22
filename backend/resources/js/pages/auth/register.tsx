@@ -23,7 +23,7 @@ export default function Register() {
                         </svg>
                     </div>
                     <h1 className="text-2xl font-bold text-foreground">SADESA</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Sistem Administrasi Desa Cirangkong</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Sahabat Digital Desa Cirangkong</p>
                 </div>
 
                 {/* Card */}

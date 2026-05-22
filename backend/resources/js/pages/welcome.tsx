@@ -243,7 +243,7 @@ function Tentang() {
                             Platform Digital untuk Desa yang Lebih Baik
                         </h2>
                         <p className="mb-6 text-base leading-relaxed text-gray-600 dark:text-gray-400">
-                            SADESA (Sistem Administrasi Desa) adalah platform digital yang dirancang khusus untuk memudahkan pengelolaan administrasi Desa Cirangkong. Sistem ini mengintegrasikan berbagai layanan desa dalam satu platform yang mudah diakses, transparan, dan efisien.
+                            SADESA — Sahabat Digital Desa, adalah platform digital yang dirancang khusus untuk memudahkan pengelolaan administrasi Desa Cirangkong. Mengintegrasikan berbagai layanan desa dalam satu platform yang mudah diakses, transparan, dan efisien.
                         </p>
                         <div className="space-y-3">
                             {['Pengajuan surat online tanpa antri', 'Laporan pengaduan real-time', 'Transparansi anggaran desa', 'Informasi & pengumuman resmi desa'].map((item, i) => (
@@ -520,7 +520,7 @@ function Transparansi() {
 
 function Berita() {
     const berita = [
-        { judul: 'Peluncuran Sistem Administrasi Desa Digital (SADESA)', tanggal: '15 Mei 2025', kategori: 'Pengumuman', kategoriColor: 'bg-blue-100 text-blue-700', ringkasan: 'Desa Cirangkong resmi meluncurkan sistem administrasi digital untuk meningkatkan kualitas pelayanan kepada masyarakat.' },
+        { judul: 'Peluncuran SADESA — Sahabat Digital Desa Cirangkong', tanggal: '15 Mei 2025', kategori: 'Pengumuman', kategoriColor: 'bg-blue-100 text-blue-700', ringkasan: 'Desa Cirangkong resmi meluncurkan platform digital SADESA untuk meningkatkan kualitas pelayanan kepada masyarakat.' },
         { judul: 'Musyawarah Desa Pembahasan APBDes 2025', tanggal: '8 Mei 2025', kategori: 'Kegiatan', kategoriColor: 'bg-teal-100 text-teal-700', ringkasan: 'Pemerintah Desa Cirangkong mengadakan Musyawarah Desa untuk membahas Rancangan APBDes tahun 2025.' },
         { judul: 'Program Vaksinasi Massal untuk Warga Desa', tanggal: '2 Mei 2025', kategori: 'Kesehatan', kategoriColor: 'bg-green-100 text-green-700', ringkasan: 'Pemerintah Desa bekerja sama dengan Puskesmas mengadakan program vaksinasi gratis untuk seluruh warga.' },
         { judul: 'Pelatihan UMKM Digital bagi Pelaku Usaha Lokal', tanggal: '28 April 2025', kategori: 'Pemberdayaan', kategoriColor: 'bg-orange-100 text-orange-700', ringkasan: 'Desa Cirangkong mengadakan pelatihan pemasaran digital dan e-commerce bagi pelaku UMKM lokal.' },
@@ -660,7 +660,7 @@ function Footer({ canRegister }: { canRegister: boolean }) {
                             <span className="text-lg font-bold text-white">SADESA</span>
                         </div>
                         <p className="text-sm leading-relaxed text-gray-400">
-                            Sistem Administrasi Desa Cirangkong — platform digital untuk pelayanan yang lebih cepat dan transparan.
+                            Sahabat Digital Desa Cirangkong — platform digital untuk pelayanan yang lebih cepat dan transparan.
                         </p>
                     </div>
 
@@ -706,7 +706,7 @@ function Footer({ canRegister }: { canRegister: boolean }) {
 
                 <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
                     <p className="text-xs text-gray-500">
-                        © {new Date().getFullYear()} Desa Cirangkong. Sistem Administrasi Desa (SADESA) — All Rights Reserved.
+                        © {new Date().getFullYear()} Desa Cirangkong. SADESA — Sahabat Digital Desa. All Rights Reserved.
                     </p>
                     <p className="text-xs text-gray-600">
                         Developed with ❤️ for Desa Cirangkong
@@ -725,7 +725,7 @@ export default function Welcome({ canRegister = true }: { canRegister?: boolean 
 
     return (
         <>
-            <Head title="SADESA — Sistem Administrasi Desa Cirangkong" />
+            <Head title="SADESA — Sahabat Digital Desa Cirangkong" />
             <div className="font-sans antialiased">
                 <Navbar user={user} canRegister={canRegister} />
                 <Hero user={user} canRegister={canRegister} />

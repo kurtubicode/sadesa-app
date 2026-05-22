@@ -41,7 +41,7 @@ export default function LayananScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ paddingBottom: SPACING.xxxl }}
+      contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.xxl }}
       showsVerticalScrollIndicator={false}
     >
       {/* ── Title ── */}

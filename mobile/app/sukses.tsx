@@ -128,7 +128,7 @@ export default function SuksesScreen() {
     <View style={s.root}>
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={[s.content, { paddingTop: insets.top + SPACING.xl }]}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + SPACING.xl, paddingBottom: 90 + footerPb }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Icon animasi ── */}

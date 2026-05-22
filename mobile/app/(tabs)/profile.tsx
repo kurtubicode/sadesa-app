@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getUser, clearSession, UserData, ROLE_LABEL, STATUS_LABEL } from "@/lib/userStorage";
+import { getUser, clearSession, UserData } from "@/lib/userStorage";
 import api from "@/lib/api";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
@@ -18,50 +18,38 @@ function initials(name: string): string {
 
 // ─── Sub-komponen ─────────────────────────────────────────────────────────────
 
-function InfoRow({
-  icon, label, value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap; label: string; value: string;
-}) {
-  return (
-    <View style={styles.infoRow}>
-      <View style={styles.infoIcon}>
-        <Ionicons name={icon} size={16} color={COLORS.primary} />
-      </View>
-      <View style={styles.infoBody}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value || "—"}</Text>
-      </View>
-    </View>
-  );
+function SectionLabel({ title }: { title: string }) {
+  return <Text style={styles.sectionLabel}>{title}</Text>;
 }
 
 function MenuRow({
-  icon, label, color, onPress, danger,
+  icon, label, onPress, danger = false, showDivider = true,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  color?: string;
   onPress: () => void;
   danger?: boolean;
+  showDivider?: boolean;
 }) {
-  const c = danger ? COLORS.danger : (color ?? COLORS.text);
   return (
-    <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.menuIcon, { backgroundColor: (danger ? COLORS.dangerLight : COLORS.primaryLight) }]}>
-        <Ionicons name={icon} size={18} color={c} />
-      </View>
-      <Text style={[styles.menuLabel, danger && { color: COLORS.danger }]}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={{ marginLeft: "auto" }} />
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.65}>
+        <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
+          <Ionicons name={icon} size={19} color={danger ? COLORS.danger : COLORS.textSecondary} />
+        </View>
+        <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>{label}</Text>
+        <Ionicons name="chevron-forward" size={16} color={danger ? COLORS.danger : COLORS.textMuted} />
+      </TouchableOpacity>
+      {showDivider && <View style={styles.rowDivider} />}
+    </>
   );
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
-  const [user, setUser]     = useState<UserData | null>(null);
+  const insets  = useSafeAreaInsets();
+  const [user, setUser]       = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(useCallback(() => {
@@ -71,7 +59,7 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       "Konfirmasi Keluar",
-      "Yakin ingin keluar dari SADESA?",
+      "Yakin ingin keluar dari akun SADESA?",
       [
         { text: "Batal", style: "cancel" },
         {
@@ -84,128 +72,202 @@ export default function ProfileScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
-  if (!user) {
-    router.replace("/");
-    return null;
-  }
-
-  const statusCfg: Record<string, { bg: string; text: string }> = {
-    aktif:               { bg: COLORS.successLight,  text: COLORS.success  },
-    nonaktif:            { bg: COLORS.dangerLight,   text: COLORS.danger   },
-    menunggu_verifikasi: { bg: COLORS.warningLight,  text: COLORS.warning  },
-  };
-  const sc = statusCfg[user.status] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
+  if (!user) { router.replace("/"); return null; }
 
   return (
     <ScrollView
       style={styles.screen}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: SPACING.xxxl }}
+      contentContainerStyle={{ paddingBottom: SPACING.xxxl + insets.bottom }}
     >
-      {/* ── Header / Avatar ── */}
-      <View style={[styles.headerBg, { paddingTop: insets.top + SPACING.xl }]}>
-        {/* Avatar */}
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{initials(user.name)}</Text>
+      {/* ── Top bar ── */}
+      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.sm }]}>
+        <View style={styles.topBarLeft}>
+          <Ionicons name="business" size={16} color={COLORS.primary} />
+          <Text style={styles.topBarBrand}>SADESA</Text>
         </View>
-        <Text style={styles.userName}>{user.name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-          <Text style={[styles.statusText, { color: sc.text }]}>
-            {STATUS_LABEL[user.status] ?? user.status}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Data Akun ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data Akun</Text>
-        <View style={styles.card}>
-          <InfoRow icon="card-outline"        label="NIK"             value={user.nik ?? "—"} />
-          <InfoRow icon="mail-outline"        label="Email"           value={user.email} />
-          <InfoRow icon="call-outline"        label="No. HP / WA"     value={user.phone ?? "—"} />
-          <InfoRow icon="shield-outline"      label="Role"            value={ROLE_LABEL[user.role] ?? user.role} />
-        </View>
-      </View>
-
-      {/* ── Menu ── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pengaturan</Text>
-        <View style={styles.card}>
-          <MenuRow
-            icon="create-outline"
-            label="Edit Profil"
-            onPress={() => Alert.alert("Segera Hadir", "Fitur edit profil akan segera tersedia.")}
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="lock-closed-outline"
-            label="Ubah Kata Sandi"
-            onPress={() => Alert.alert("Segera Hadir", "Fitur ubah kata sandi akan segera tersedia.")}
-          />
-          <View style={styles.divider} />
-          <MenuRow
-            icon="notifications-outline"
-            label="Notifikasi"
-            onPress={() => Alert.alert("Segera Hadir", "Pengaturan notifikasi akan segera tersedia.")}
-          />
-        </View>
-      </View>
-
-      {/* ── Logout ── */}
-      <View style={[styles.section, { paddingHorizontal: SPACING.lg }]}>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
-          <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
-          <Text style={styles.logoutText}>Keluar dari Akun</Text>
+        <TouchableOpacity
+          style={styles.bellBtn}
+          onPress={() => router.push("/notifikasi" as any)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
+      {/* ── Avatar & Nama ── */}
+      <View style={styles.heroSection}>
+        {/* Avatar ring + edit btn */}
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatarRing}>
+            <View style={styles.avatarInner}>
+              <Text style={styles.avatarText}>{initials(user.name)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => Alert.alert("Segera Hadir", "Fitur edit foto profil akan segera tersedia.")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="pencil" size={13} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Nama */}
+        <Text style={styles.heroName}>{user.name}</Text>
+
+        {/* NIK badge */}
+        {user.nik ? (
+          <View style={styles.nikBadge}>
+            <Text style={styles.nikText}>NIK: {user.nik}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* ── DATA & KEAMANAN ── */}
+      <View style={styles.section}>
+        <SectionLabel title="DATA & KEAMANAN" />
+        <View style={styles.card}>
+          <MenuRow
+            icon="person-outline"
+            label="Data Diri"
+            onPress={() => router.push("/profil/edit" as any)}
+          />
+          <MenuRow
+            icon="lock-closed-outline"
+            label="Ganti Kata Sandi"
+            onPress={() => router.push("/profil/ganti-password" as any)}
+            showDivider={false}
+          />
+        </View>
+      </View>
+
+      {/* ── DUKUNGAN ── */}
+      <View style={styles.section}>
+        <SectionLabel title="DUKUNGAN" />
+        <View style={styles.card}>
+          <MenuRow
+            icon="help-circle-outline"
+            label="Bantuan & FAQ"
+            onPress={() => Alert.alert("Segera Hadir", "Fitur bantuan akan segera tersedia.")}
+            showDivider={false}
+          />
+        </View>
+      </View>
+
+      {/* ── SISTEM ── */}
+      <View style={styles.section}>
+        <SectionLabel title="SISTEM" />
+        <View style={styles.card}>
+          <MenuRow
+            icon="settings-outline"
+            label="Pengaturan Aplikasi"
+            onPress={() => Alert.alert("Segera Hadir", "Pengaturan aplikasi akan segera tersedia.")}
+          />
+          <MenuRow
+            icon="information-circle-outline"
+            label="Tentang Aplikasi"
+            onPress={() => Alert.alert("SADESA", "Sahabat Digital Desa\nVersi 2.4.1")}
+          />
+          <MenuRow
+            icon="log-out-outline"
+            label="Keluar"
+            onPress={handleLogout}
+            danger
+            showDivider={false}
+          />
+        </View>
+      </View>
+
       {/* ── Versi ── */}
-      <Text style={styles.version}>SADESA v1.0.0 · Desa Cirangkong</Text>
+      <Text style={styles.version}>SADESA V2.4.1 — 2024</Text>
     </ScrollView>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  screen:     { flex: 1, backgroundColor: COLORS.background },
-  loadingWrap:{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
+const AVATAR_SIZE  = 100;
+const RING_WIDTH   = 3;
+const RING_GAP     = 4;
+const RING_OUTER   = AVATAR_SIZE + (RING_WIDTH + RING_GAP) * 2;
+const EDIT_SIZE    = 30;
 
-  // Header
-  headerBg: {
-    backgroundColor: COLORS.primary,
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
+
+  // Top bar
+  topBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md,
+    backgroundColor: COLORS.background,
+  },
+  topBarLeft:  { flexDirection: "row", alignItems: "center", gap: SPACING.xs },
+  topBarBrand: { fontSize: FONT.xl, fontWeight: "800", color: COLORS.text },
+  bellBtn:     { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+
+  // Hero
+  heroSection: {
     alignItems: "center",
-    paddingBottom: SPACING.xxxl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl,
+    backgroundColor: COLORS.background,
   },
-  avatarCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.white,
+
+  // Avatar
+  avatarWrap: { position: "relative", marginBottom: SPACING.lg },
+  avatarRing: {
+    width: RING_OUTER, height: RING_OUTER, borderRadius: RING_OUTER / 2,
+    borderWidth: RING_WIDTH, borderColor: COLORS.primary,
+    padding: RING_GAP,
     justifyContent: "center", alignItems: "center",
-    marginBottom: SPACING.md,
-    ...SHADOW.md,
   },
-  avatarText:  { fontSize: FONT.xxxl, fontWeight: "800", color: COLORS.primary },
-  userName:    { fontSize: FONT.xxl, fontWeight: "800", color: COLORS.white, marginBottom: SPACING.sm },
-  statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.full },
-  statusText:  { fontSize: FONT.sm, fontWeight: "700" },
+  avatarInner: {
+    width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center", alignItems: "center",
+    ...SHADOW.sm,
+  },
+  avatarText: { fontSize: FONT.xxxl + 4, fontWeight: "800", color: COLORS.primary },
+  editBtn: {
+    position: "absolute", bottom: 2, right: 2,
+    width: EDIT_SIZE, height: EDIT_SIZE, borderRadius: EDIT_SIZE / 2,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: COLORS.background,
+    ...SHADOW.sm,
+  },
+
+  heroName: {
+    fontSize: FONT.xxl, fontWeight: "800", color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  nikBadge: {
+    backgroundColor: COLORS.inputBg, borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs,
+  },
+  nikText: { fontSize: FONT.sm, color: COLORS.textSecondary, fontWeight: "500" },
 
   // Section
-  section:      { paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl },
-  sectionTitle: {
-    fontSize: FONT.sm, fontWeight: "700", color: COLORS.textMuted,
-    letterSpacing: 0.8, marginBottom: SPACING.sm, textTransform: "uppercase",
+  section:      { paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  sectionLabel: {
+    fontSize: FONT.xs, fontWeight: "700", color: COLORS.textMuted,
+    letterSpacing: 0.8, textTransform: "uppercase",
+    marginBottom: SPACING.sm, marginLeft: SPACING.xs,
   },
 
   // Card
@@ -214,48 +276,27 @@ const styles = StyleSheet.create({
     overflow: "hidden", ...SHADOW.sm,
   },
 
-  // Info row
-  infoRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: COLORS.divider,
-  },
-  infoIcon: {
-    width: 36, height: 36, borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: "center", alignItems: "center",
-    marginRight: SPACING.md,
-  },
-  infoBody:  { flex: 1 },
-  infoLabel: { fontSize: FONT.xs, color: COLORS.textMuted, marginBottom: 2 },
-  infoValue: { fontSize: FONT.md, color: COLORS.text, fontWeight: "600" },
-
   // Menu row
   menuRow: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingVertical: 14,
+    gap: SPACING.md,
   },
   menuIcon: {
-    width: 36, height: 36, borderRadius: RADIUS.md,
+    width: 38, height: 38, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.inputBg,
     justifyContent: "center", alignItems: "center",
-    marginRight: SPACING.md,
+    flexShrink: 0,
   },
-  menuLabel: { fontSize: FONT.md, fontWeight: "600", color: COLORS.text },
+  menuIconDanger: { backgroundColor: COLORS.dangerLight },
+  menuLabel:      { flex: 1, fontSize: FONT.md, fontWeight: "600", color: COLORS.text },
+  menuLabelDanger:{ color: COLORS.danger },
+  rowDivider:     { height: 1, backgroundColor: COLORS.divider, marginLeft: SPACING.lg + 38 + SPACING.md },
 
-  divider: { height: 1, backgroundColor: COLORS.divider, marginLeft: SPACING.lg + 36 + SPACING.md },
-
-  // Logout
-  logoutBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: SPACING.sm, backgroundColor: COLORS.white,
-    borderRadius: RADIUS.xl, paddingVertical: SPACING.lg,
-    borderWidth: 1.5, borderColor: COLORS.danger, ...SHADOW.sm,
-  },
-  logoutText: { color: COLORS.danger, fontSize: FONT.xl, fontWeight: "700" },
-
-  // Version
+  // Footer
   version: {
     textAlign: "center", color: COLORS.textMuted,
-    fontSize: FONT.xs, marginTop: SPACING.xl,
+    fontSize: FONT.xs, letterSpacing: 0.5,
+    marginTop: SPACING.lg,
   },
 });

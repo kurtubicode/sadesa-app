@@ -7,6 +7,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import api from "@/lib/api";
+import { saveSession } from "@/lib/userStorage";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
 // ─── Komponen Field ───────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      // 1. Register
       await api.post("/api/register", {
         nik,
         name,
@@ -95,11 +97,13 @@ export default function RegisterScreen() {
         password_confirmation: confirm,
         phone: phone || undefined,
       });
-      Alert.alert(
-        "Pendaftaran Berhasil 🎉",
-        "Akun Anda sedang menunggu verifikasi Admin. Anda akan dihubungi setelah akun aktif.",
-        [{ text: "OK", onPress: () => router.replace("/") }]
-      );
+
+      // 2. Auto-login agar langsung bisa upload dokumen verifikasi
+      const loginRes = await api.post("/api/login", { email, password });
+      await saveSession(loginRes.data.token, loginRes.data.user);
+
+      // 3. Langsung ke halaman verifikasi
+      router.replace("/verifikasi" as any);
     } catch (error: any) {
       const msg = error?.response?.data?.message ?? "Pendaftaran gagal. Periksa kembali data Anda.";
       Alert.alert("Pendaftaran Gagal", msg);
@@ -112,11 +116,12 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           {/* ── Header ── */}

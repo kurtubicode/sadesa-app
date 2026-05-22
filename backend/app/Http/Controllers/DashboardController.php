@@ -7,6 +7,7 @@ use App\Models\KontenDesa;
 use App\Models\Pengaduan;
 use App\Models\PengajuanSurat;
 use App\Models\User;
+use App\Models\VerifikasiWarga;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,10 +30,11 @@ class DashboardController extends Controller
 
     private function admin(Request $request): Response
     {
-        $totalUsers       = User::count();
-        $totalPengajuan   = PengajuanSurat::count();
-        $pengajuanHariIni = PengajuanSurat::whereDate('created_at', today())->count();
-        $pengaduanBaru    = Pengaduan::where('status', 'menunggu')->count();
+        $totalUsers           = User::count();
+        $totalPengajuan       = PengajuanSurat::count();
+        $pengajuanHariIni     = PengajuanSurat::whereDate('created_at', today())->count();
+        $pengaduanBaru        = Pengaduan::where('status', 'menunggu')->count();
+        $verifikasiMenunggu   = VerifikasiWarga::where('status', 'menunggu')->count();
 
         $recentLogs = AuditLog::with('user:id,name')
             ->latest()
@@ -41,10 +43,11 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard/admin', [
             'stats' => [
-                'total_users'        => $totalUsers,
-                'total_pengajuan'    => $totalPengajuan,
-                'pengajuan_hari_ini' => $pengajuanHariIni,
-                'pengaduan_baru'     => $pengaduanBaru,
+                'total_users'          => $totalUsers,
+                'total_pengajuan'      => $totalPengajuan,
+                'pengajuan_hari_ini'   => $pengajuanHariIni,
+                'pengaduan_baru'       => $pengaduanBaru,
+                'verifikasi_menunggu'  => $verifikasiMenunggu,
             ],
             'recent_logs' => $recentLogs,
         ]);

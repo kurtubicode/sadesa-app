@@ -299,12 +299,12 @@ export default function BuatPengajuanScreen() {
   const footerPb = Math.max(insets.bottom, SPACING.md);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <StepIndicator current={step} />
 
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 80 + footerPb }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

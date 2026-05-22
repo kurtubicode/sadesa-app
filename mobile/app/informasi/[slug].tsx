@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "@/lib/api";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
@@ -41,6 +42,7 @@ function formatTanggal(iso: string) {
 
 export default function DetailInformasiScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const insets   = useSafeAreaInsets();
   const [data, setData]             = useState<KontenDetail | null>(null);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,7 +83,7 @@ export default function DetailInformasiScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.xxl }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -141,7 +143,8 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
 
-  body: { padding: SPACING.lg, paddingBottom: SPACING.xxxl * 2 },
+  // paddingBottom set dynamically
+  body: { padding: SPACING.lg },
 
   // Badge
   badge:     { alignSelf: "flex-start", paddingHorizontal: SPACING.sm, paddingVertical: 3, borderRadius: RADIUS.xs, marginBottom: SPACING.md },

@@ -15,7 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import api from "@/lib/api";
-import { saveSession, getToken } from "@/lib/userStorage";
+import { saveSession, getToken, getUser } from "@/lib/userStorage";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
 // ─── Logo SADESA ──────────────────────────────────────────────────────────────
@@ -92,10 +92,19 @@ export default function LoginScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    getToken().then((token) => {
-      if (token) router.replace("/home");
-      else setChecking(false);
-    });
+    (async () => {
+      const token = await getToken();
+      if (token) {
+        const user = await getUser();
+        if (user?.status === "menunggu_verifikasi") {
+          router.replace("/verifikasi" as any);
+        } else {
+          router.replace("/home");
+        }
+      } else {
+        setChecking(false);
+      }
+    })();
   }, []);
 
   const handleLogin = async () => {
@@ -116,11 +125,16 @@ export default function LoginScreen() {
       }
 
       await saveSession(res.data.token, res.data.user);
-      router.replace("/home");
+      const status = res.data.user?.status;
+      if (status === "menunggu_verifikasi") {
+        router.replace("/verifikasi" as any);
+      } else {
+        router.replace("/home");
+      }
     } catch (error: any) {
       const status = error?.response?.status;
       if (status === 401) Alert.alert("Login Gagal", "Email atau kata sandi salah.");
-      else if (status === 403) Alert.alert("Akses Ditolak", error?.response?.data?.message);
+      else if (status === 403) Alert.alert("Akun Dinonaktifkan", error?.response?.data?.message ?? "Akun Anda dinonaktifkan. Hubungi Admin desa.");
       else Alert.alert("Koneksi Gagal", "Tidak dapat terhubung ke server.");
     } finally {
       setLoading(false);
@@ -141,11 +155,12 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           {/* ── Header ── */}

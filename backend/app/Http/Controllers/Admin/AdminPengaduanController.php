@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Pengaduan;
 use App\Models\TanggapanPengaduan;
+use App\Notifications\PengaduanTanggapanNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -79,6 +80,16 @@ class AdminPengaduanController extends Controller
         AuditLog::catat('tanggapi_pengaduan', 'Pengaduan', $pengaduan->id, [
             'isi' => $request->isi_tanggapan,
         ]);
+
+        // Kirim notifikasi ke pelapor
+        $pengaduan->load('user');
+        try {
+            $pengaduan->user->notify(new PengaduanTanggapanNotification(
+                $pengaduan,
+                $request->isi_tanggapan,
+                $request->user()->name
+            ));
+        } catch (\Throwable) { /* silent */ }
 
         return back()->with('success', 'Tanggapan berhasil dikirim.');
     }

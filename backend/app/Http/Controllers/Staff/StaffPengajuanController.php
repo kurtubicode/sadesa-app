@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\PengajuanSurat;
 use App\Models\VerifikasiBerkas;
+use App\Notifications\StatusSuratNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -108,6 +109,12 @@ class StaffPengajuanController extends Controller
             $pengajuan->id,
             ['status_baru' => $newStatus, 'catatan' => $catatan]
         );
+
+        // Kirim notifikasi ke warga
+        $pengajuan->load('user');
+        try {
+            $pengajuan->user->notify(new StatusSuratNotification($pengajuan));
+        } catch (\Throwable) { /* silent — jangan gagalkan request */ }
 
         $pesan = match ($action) {
             'setujui' => 'Pengajuan berhasil diverifikasi dan diteruskan ke Kepala Desa.',

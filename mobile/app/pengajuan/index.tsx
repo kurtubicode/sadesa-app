@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "@/lib/api";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
@@ -33,6 +34,7 @@ interface Pengajuan {
 
 export default function RiwayatPengajuanScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [data, setData]             = useState<Pengajuan[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +81,7 @@ export default function RiwayatPengajuanScreen() {
         <FlatList
           data={data}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.xl }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.primary} />
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: FONT.xl, fontWeight: "700", color: COLORS.text },
   emptySub:  { fontSize: FONT.base, color: COLORS.textMuted, textAlign: "center" },
 
-  listContent: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+  listContent: { paddingHorizontal: SPACING.lg },
 
   card: {
     backgroundColor: COLORS.white, borderRadius: RADIUS.xl,

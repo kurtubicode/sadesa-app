@@ -8,6 +8,7 @@ import {
     Megaphone,
     Settings,
     ShieldCheck,
+    UserCheck,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -31,6 +32,7 @@ import type { Auth } from '@/types/auth';
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard',       href: dashboard(),          icon: LayoutGrid },
+    { title: 'Verifikasi Warga', href: '/admin/verifikasi-warga', icon: UserCheck },
     { title: 'Kelola Pengguna', href: '/admin/users',       icon: Users },
     { title: 'Pengajuan Surat', href: '/admin/pengajuan',   icon: FileText },
     { title: 'Pengaduan',       href: '/admin/pengaduan',   icon: Megaphone },

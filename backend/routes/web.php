@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminWilayahController;
 use App\Http\Controllers\Admin\AdminPengaduanController;
 use App\Http\Controllers\Admin\AdminPengajuanController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminVerifikasiWargaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformasiController;
 use App\Http\Controllers\KepalaDesa\KepalaPengajuanController;
@@ -29,6 +30,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── Admin routes ─────────────────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+
+        // Verifikasi Warga
+        Route::get('verifikasi-warga',                              [AdminVerifikasiWargaController::class, 'index'])->name('verifikasi-warga.index');
+        Route::get('verifikasi-warga/{verifikasiWarga}',            [AdminVerifikasiWargaController::class, 'show'])->name('verifikasi-warga.show');
+        Route::post('verifikasi-warga/{verifikasiWarga}/proses',    [AdminVerifikasiWargaController::class, 'proses'])->name('verifikasi-warga.proses');
 
         // Kelola Pengguna
         Route::get('users',                         [AdminUserController::class, 'index'])->name('users');

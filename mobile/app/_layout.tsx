@@ -33,8 +33,9 @@ export default function RootLayout() {
     <ThemeProvider value={SADESATheme}>
       <Stack screenOptions={HEADER_OPTIONS}>
         {/* Auth */}
-        <Stack.Screen name="index"    options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="index"      options={{ headerShown: false }} />
+        <Stack.Screen name="register"   options={{ headerShown: false }} />
+        <Stack.Screen name="verifikasi" options={{ headerShown: false }} />
 
         {/* Tab utama */}
         <Stack.Screen name="(tabs)"   options={{ headerShown: false }} />
@@ -68,6 +69,13 @@ export default function RootLayout() {
         {/* Informasi desa */}
         <Stack.Screen name="informasi/index"  options={{ title: "Informasi Desa" }} />
         <Stack.Screen name="informasi/[slug]" options={{ title: "Detail Berita" }} />
+
+        {/* Notifikasi */}
+        <Stack.Screen name="notifikasi" options={{ headerShown: false }} />
+
+        {/* Profil */}
+        <Stack.Screen name="profil/edit"           options={{ title: "Data Diri" }} />
+        <Stack.Screen name="profil/ganti-password" options={{ title: "Ganti Kata Sandi" }} />
       </Stack>
       <StatusBar style="dark" />
     </ThemeProvider>

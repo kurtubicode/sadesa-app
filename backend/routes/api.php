@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\PengaduanController;
 use App\Http\Controllers\Api\PengesahanController;
 use App\Http\Controllers\Api\PengajuanSuratController;
 use App\Http\Controllers\Api\VerifikasiController;
+use App\Http\Controllers\Api\VerifikasiWargaController;
 use App\Models\KategoriAduan;
 use App\Models\KontenDesa;
 use App\Models\User;
@@ -51,18 +53,18 @@ Route::post('/register', function (Request $request) {
 
 Route::post('/login', function (Request $request) {
     $request->validate([
-        'email'    => 'required|email',
+        'email'    => 'required|string',
         'password' => 'required|string',
     ]);
 
-    $user = User::where('email', $request->email)->first();
+    $identifier = $request->email; // bisa berupa email atau NIK
+
+    // Coba cari berdasarkan email, jika tidak ketemu coba NIK
+    $user = User::where('email', $identifier)->first()
+         ?? User::where('nik', $identifier)->first();
 
     if (! $user || ! Hash::check($request->password, $user->password)) {
         return response()->json(['message' => 'Email atau password salah.'], 401);
-    }
-
-    if ($user->status === 'menunggu_verifikasi') {
-        return response()->json(['message' => 'Akun Anda belum diverifikasi oleh Admin. Silakan tunggu konfirmasi.'], 403);
     }
 
     if ($user->status === 'nonaktif') {
@@ -135,6 +137,64 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/user', function (Request $request) {
         return response()->json(['user' => $request->user()->load('wilayah')]);
+    });
+
+    // Update profil (semua role)
+    Route::put('/profile', function (Request $request) {
+        $user = $request->user();
+
+        $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:15',
+        ]);
+
+        $user->update([
+            'name'  => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+        ]);
+
+        return response()->json([
+            'message' => 'Profil berhasil diperbarui.',
+            'user'    => [
+                'id'         => $user->id,
+                'nik'        => $user->nik,
+                'name'       => $user->name,
+                'email'      => $user->email,
+                'phone'      => $user->phone,
+                'role'       => $user->role,
+                'status'     => $user->status,
+                'wilayah_id' => $user->wilayah_id,
+            ],
+        ]);
+    });
+
+    // Notifikasi
+    Route::get('/notifications',              [NotifikasiController::class, 'index']);
+    Route::post('/notifications/read-all',    [NotifikasiController::class, 'markAllRead']);
+    Route::patch('/notifications/{id}/read',  [NotifikasiController::class, 'markRead']);
+
+    // Ganti kata sandi (semua role)
+    Route::put('/password', function (Request $request) {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password'         => 'required|string|min:8|confirmed',
+        ]);
+
+        if (! Hash::check($request->current_password, $request->user()->password)) {
+            return response()->json(['message' => 'Kata sandi saat ini tidak sesuai.'], 422);
+        }
+
+        $request->user()->update(['password' => $request->password]);
+
+        return response()->json(['message' => 'Kata sandi berhasil diperbarui.']);
+    });
+
+    // ─── VERIFIKASI WARGA (menunggu_verifikasi bisa akses) ────
+    Route::middleware('role:warga')->group(function () {
+        Route::post('/verifikasi-dokumen',  [VerifikasiWargaController::class, 'upload']);
+        Route::get('/verifikasi-status',    [VerifikasiWargaController::class, 'status']);
     });
 
     // ─── WARGA ────────────────────────────────────────────────

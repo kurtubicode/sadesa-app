@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\KontenDesa;
+use App\Models\User;
+use App\Notifications\InformasiDesaNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -52,6 +54,11 @@ class AdminKontenController extends Controller
 
         AuditLog::catat('buat_konten', KontenDesa::class, $konten->id);
 
+        // Kirim notifikasi ke semua warga aktif saat langsung dipublish
+        if ($konten->status === 'published') {
+            $this->broadcastInformasi($konten);
+        }
+
         return back()->with('success', 'Konten berhasil dibuat.');
     }
 
@@ -69,10 +76,26 @@ class AdminKontenController extends Controller
             $data['slug'] = KontenDesa::buatSlug($data['judul']);
         }
 
+        $wasDraft = $konten->status === 'draft';
         $konten->update($data);
         AuditLog::catat('update_konten', KontenDesa::class, $konten->id);
 
+        // Kirim notifikasi jika baru dipublish dari draft
+        if ($wasDraft && $konten->fresh()->status === 'published') {
+            $this->broadcastInformasi($konten->fresh());
+        }
+
         return back()->with('success', 'Konten berhasil diperbarui.');
+    }
+
+    // ─── Broadcast ke semua warga aktif ──────────────────────────────────────
+
+    private function broadcastInformasi(KontenDesa $konten): void
+    {
+        try {
+            User::where('role', 'warga')->where('status', 'aktif')
+                ->each(fn ($u) => $u->notify(new InformasiDesaNotification($konten)));
+        } catch (\Throwable) { /* silent */ }
     }
 
     public function destroy(KontenDesa $konten): RedirectResponse

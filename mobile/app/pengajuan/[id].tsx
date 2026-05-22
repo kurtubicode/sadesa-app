@@ -362,7 +362,7 @@ export default function DetailPengajuanScreen() {
     <View style={s.screen}>
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: 80 + footerPb }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

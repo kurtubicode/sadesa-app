@@ -1,31 +1,53 @@
-import { Tabs } from "expo-router";
-import { TouchableOpacity, View, Text, StyleSheet, Platform } from "react-native";
+import { Tabs, router } from "expo-router";
+import { TouchableOpacity, View, Text, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { getUser } from "@/lib/userStorage";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TABS = [
-  { name: "home",    label: "BERANDA", icon: "home",            iconOff: "home-outline"            },
-  { name: "layanan", label: "LAYANAN", icon: "grid",            iconOff: "grid-outline"            },
-  { name: "status",  label: "STATUS",  icon: "checkmark-circle", iconOff: "checkmark-circle-outline" },
-  { name: "profile", label: "PROFIL",  icon: "person",          iconOff: "person-outline"          },
+  { name: "home",    label: "BERANDA", icon: "home",            iconOff: "home-outline",            restricted: false },
+  { name: "layanan", label: "LAYANAN", icon: "grid",            iconOff: "grid-outline",            restricted: true  },
+  { name: "status",  label: "STATUS",  icon: "checkmark-circle", iconOff: "checkmark-circle-outline", restricted: true  },
+  { name: "profile", label: "PROFIL",  icon: "person",          iconOff: "person-outline",          restricted: false },
 ] as const;
 
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: BottomTabBarProps & { userStatus?: string }) {
   const insets = useSafeAreaInsets();
+  const [userStatus, setUserStatus] = useState<string | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    getUser().then((u) => setUserStatus(u?.status ?? null));
+  }, []));
+
+  const isVerified = userStatus === "aktif";
 
   return (
     <View style={[styles.tabBar, { paddingBottom: insets.bottom || SPACING.sm }]}>
       {state.routes.map((route, index) => {
-        const tab     = TABS[index];
-        const focused = state.index === index;
+        const tab      = TABS[index];
+        const focused  = state.index === index;
+        const locked   = tab.restricted && !isVerified;
 
         const onPress = () => {
+          if (locked) {
+            Alert.alert(
+              "Akun Belum Aktif",
+              "Lengkapi verifikasi identitas Anda untuk mengakses fitur ini.",
+              [
+                { text: "Nanti", style: "cancel" },
+                { text: "Verifikasi Sekarang", onPress: () => router.push("/verifikasi" as any) },
+              ]
+            );
+            return;
+          }
           const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) {
             navigation.navigate(route.name);
@@ -39,24 +61,27 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             style={styles.tabItem}
             activeOpacity={0.75}
           >
-            {focused ? (
+            {focused && !locked ? (
               <View style={styles.activePill}>
-                <Ionicons
-                  name={tab.icon as any}
-                  size={18}
-                  color={COLORS.white}
-                />
+                <Ionicons name={tab.icon as any} size={18} color={COLORS.white} />
                 <Text style={styles.activePillLabel}>{tab.label}</Text>
               </View>
             ) : (
-              <>
+              <View style={styles.tabItemInner}>
                 <Ionicons
                   name={tab.iconOff as any}
                   size={22}
-                  color="#888888"
+                  color={locked ? COLORS.border : "#888888"}
                 />
-                <Text style={styles.inactiveLabel}>{tab.label}</Text>
-              </>
+                {locked && (
+                  <View style={styles.lockBadge}>
+                    <Ionicons name="lock-closed" size={8} color={COLORS.white} />
+                  </View>
+                )}
+                <Text style={[styles.inactiveLabel, locked && styles.lockedLabel]}>
+                  {tab.label}
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
         );
@@ -100,6 +125,21 @@ const styles = StyleSheet.create({
     minHeight: 48,
     gap: SPACING.xs,
   },
+  tabItemInner: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.xs,
+    position: "relative",
+  },
+  lockBadge: {
+    position: "absolute",
+    top: -2, right: -6,
+    width: 14, height: 14,
+    borderRadius: 99,
+    backgroundColor: COLORS.textMuted,
+    justifyContent: "center", alignItems: "center",
+  },
+  lockedLabel: { color: COLORS.border },
   activePill: {
     flexDirection: "row",
     alignItems: "center",

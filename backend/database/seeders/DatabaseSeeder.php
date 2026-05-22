@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
             MasterSuratSeeder::class,
             KategoriAduanSeeder::class,
             KontenDesaSeeder::class,
+            PengajuanSuratSeeder::class, // pengajuan surat (semua status ter-cover)
+            PengaduanSeeder::class,      // laporan / pengaduan warga
+            NotifikasiSeeder::class,     // notifikasi dummy untuk warga
         ]);
     }
 }

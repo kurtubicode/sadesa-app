@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, Image, Modal,
@@ -90,25 +90,288 @@ const si = StyleSheet.create({
   lineDone: { backgroundColor: COLORS.primary },
 });
 
+// ─── Step 1 — Form ────────────────────────────────────────────────────────────
+
+interface Step1Props {
+  selectedKat: KategoriAduan | null;
+  judul: string;
+  deskripsi: string;
+  lokasi: string;
+  buktiList: BuktiItem[];
+  maxBukti: number;
+  onJudulChange: (v: string) => void;
+  onDeskripsiChange: (v: string) => void;
+  onLokasiChange: (v: string) => void;
+  onOpenKatModal: () => void;
+  onTambahBukti: () => void;
+  onHapusBukti: (i: number) => void;
+}
+
+function Step1Form({
+  selectedKat, judul, deskripsi, lokasi, buktiList, maxBukti,
+  onJudulChange, onDeskripsiChange, onLokasiChange,
+  onOpenKatModal, onTambahBukti, onHapusBukti,
+}: Step1Props) {
+  return (
+    <View style={styles.stepWrap}>
+      <Text style={styles.stepTitle}>Detail Laporan</Text>
+      <Text style={styles.stepSub}>Isi informasi kejadian dengan lengkap dan jelas.</Text>
+
+      {/* KATEGORI */}
+      <Text style={styles.fieldLabel}>
+        Kategori Laporan <Text style={styles.req}>*</Text>
+      </Text>
+      <TouchableOpacity
+        style={[styles.dropdownBtn, !selectedKat && styles.dropdownBtnEmpty]}
+        onPress={onOpenKatModal}
+        activeOpacity={0.8}
+      >
+        <Ionicons
+          name="pricetag-outline"
+          size={18}
+          color={selectedKat ? COLORS.primary : COLORS.textMuted}
+        />
+        <Text style={[styles.dropdownText, !selectedKat && styles.dropdownPlaceholder]}>
+          {selectedKat ? selectedKat.nama_kategori : "Pilih kategori laporan…"}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} />
+      </TouchableOpacity>
+
+      {/* JUDUL */}
+      <Text style={[styles.fieldLabel, { marginTop: SPACING.xl }]}>
+        Judul Laporan <Text style={styles.req}>*</Text>
+      </Text>
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={styles.input}
+          placeholder="Contoh: Jalan rusak di Gang Mawar RT 02"
+          placeholderTextColor={COLORS.textPlaceholder}
+          value={judul}
+          onChangeText={onJudulChange}
+          maxLength={120}
+        />
+      </View>
+
+      {/* DESKRIPSI */}
+      <Text style={[styles.fieldLabel, { marginTop: SPACING.lg }]}>
+        Deskripsi Kejadian <Text style={styles.req}>*</Text>
+      </Text>
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={[styles.input, styles.textarea]}
+          placeholder={"Jelaskan secara rinci:\n• Waktu dan tempat kejadian\n• Kronologi masalah\n• Dampak yang dirasakan"}
+          placeholderTextColor={COLORS.textPlaceholder}
+          multiline
+          numberOfLines={6}
+          value={deskripsi}
+          onChangeText={onDeskripsiChange}
+          maxLength={2000}
+          textAlignVertical="top"
+        />
+        <Text style={styles.charCount}>{deskripsi.length}/2000</Text>
+      </View>
+
+      {/* UPLOAD BUKTI */}
+      <Text style={[styles.fieldLabel, { marginTop: SPACING.lg }]}>
+        Bukti Foto{" "}
+        <Text style={styles.optional}>(opsional, maks. {maxBukti})</Text>
+      </Text>
+
+      {buktiList.length > 0 && (
+        <View style={styles.buktiGrid}>
+          {buktiList.map((b, i) => (
+            <View key={i} style={styles.buktiItem}>
+              <Image source={{ uri: b.uri }} style={styles.buktiThumb} resizeMode="cover" />
+              <TouchableOpacity
+                style={styles.buktiDelete}
+                onPress={() => onHapusBukti(i)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="close" size={11} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {buktiList.length < maxBukti && (
+        <TouchableOpacity style={styles.uploadBox} onPress={onTambahBukti} activeOpacity={0.75}>
+          <View style={styles.uploadIconWrap}>
+            <Ionicons name="camera-outline" size={26} color={COLORS.primary} />
+          </View>
+          <Text style={styles.uploadTitle}>
+            {buktiList.length === 0 ? "Tambah Foto Bukti" : `Tambah Lagi (${buktiList.length}/${maxBukti})`}
+          </Text>
+          <Text style={styles.uploadSub}>Kamera atau galeri • JPG/PNG</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* LOKASI */}
+      <Text style={[styles.fieldLabel, { marginTop: SPACING.xl }]}>
+        Lokasi Kejadian{" "}
+        <Text style={styles.optional}>(opsional)</Text>
+      </Text>
+      <View style={styles.inputWrap}>
+        <View style={styles.inputRow}>
+          <Ionicons name="location-outline" size={18} color={COLORS.textMuted} style={{ marginRight: SPACING.sm }} />
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder="Contoh: RT 03 RW 01, Gang Melati No. 12"
+            placeholderTextColor={COLORS.textPlaceholder}
+            value={lokasi}
+            onChangeText={onLokasiChange}
+            maxLength={200}
+          />
+        </View>
+      </View>
+
+      {/* Map placeholder */}
+      <View style={styles.mapPlaceholder}>
+        <Ionicons name="map-outline" size={32} color={COLORS.textMuted} />
+        <Text style={styles.mapText}>Pilih titik lokasi di peta</Text>
+        <Text style={styles.mapSub}>Fitur peta interaktif segera hadir</Text>
+      </View>
+
+      {/* Info */}
+      <View style={styles.infoBox}>
+        <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+        <Text style={styles.infoText}>
+          Laporan diproses dalam 1–3 hari kerja. Sertakan foto dan deskripsi yang jelas
+          agar petugas dapat segera menindaklanjuti.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 2 — Konfirmasi ──────────────────────────────────────────────────────
+
+interface Step2Props {
+  selectedKat: KategoriAduan | null;
+  judul: string;
+  deskripsi: string;
+  lokasi: string;
+  buktiList: BuktiItem[];
+}
+
+function Step2Konfirmasi({ selectedKat, judul, deskripsi, lokasi, buktiList }: Step2Props) {
+  return (
+    <View style={styles.stepWrap}>
+      <Text style={styles.stepTitle}>Konfirmasi Laporan</Text>
+      <Text style={styles.stepSub}>
+        Periksa kembali data Anda sebelum mengirim laporan.
+      </Text>
+
+      {/* Summary card */}
+      <View style={styles.summaryCard}>
+        {/* Kategori */}
+        <View style={styles.summaryRow}>
+          <View style={[styles.summaryIcon, { backgroundColor: "#EDE9FE" }]}>
+            <Ionicons name="pricetag-outline" size={16} color="#7C3AED" />
+          </View>
+          <View style={styles.summaryBody}>
+            <Text style={styles.summaryKey}>Kategori Laporan</Text>
+            <Text style={styles.summaryVal}>{selectedKat?.nama_kategori}</Text>
+          </View>
+        </View>
+        <View style={styles.summaryDivider} />
+
+        {/* Judul */}
+        <View style={styles.summaryRow}>
+          <View style={[styles.summaryIcon, { backgroundColor: COLORS.primaryLight }]}>
+            <Ionicons name="document-text-outline" size={16} color={COLORS.primary} />
+          </View>
+          <View style={styles.summaryBody}>
+            <Text style={styles.summaryKey}>Judul Laporan</Text>
+            <Text style={styles.summaryVal}>{judul}</Text>
+          </View>
+        </View>
+        <View style={styles.summaryDivider} />
+
+        {/* Deskripsi */}
+        <View style={styles.summaryRow}>
+          <View style={[styles.summaryIcon, { backgroundColor: COLORS.infoLight }]}>
+            <Ionicons name="chatbubble-outline" size={16} color={COLORS.info} />
+          </View>
+          <View style={styles.summaryBody}>
+            <Text style={styles.summaryKey}>Deskripsi Kejadian</Text>
+            <Text style={styles.summaryVal} numberOfLines={4}>{deskripsi}</Text>
+          </View>
+        </View>
+
+        {/* Bukti */}
+        {buktiList.length > 0 && (
+          <>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <View style={[styles.summaryIcon, { backgroundColor: COLORS.successLight }]}>
+                <Ionicons name="images-outline" size={16} color={COLORS.success} />
+              </View>
+              <View style={styles.summaryBody}>
+                <Text style={styles.summaryKey}>Bukti Foto</Text>
+                <View style={styles.buktiPreviewRow}>
+                  {buktiList.map((b, i) => (
+                    <Image key={i} source={{ uri: b.uri }} style={styles.buktiPreviewThumb} resizeMode="cover" />
+                  ))}
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Lokasi */}
+        {lokasi.trim() !== "" && (
+          <>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <View style={[styles.summaryIcon, { backgroundColor: COLORS.warningLight }]}>
+                <Ionicons name="location-outline" size={16} color={COLORS.warning} />
+              </View>
+              <View style={styles.summaryBody}>
+                <Text style={styles.summaryKey}>Lokasi Kejadian</Text>
+                <Text style={styles.summaryVal}>{lokasi}</Text>
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+
+      {/* Warning */}
+      <View style={styles.warningBox}>
+        <Ionicons name="warning-outline" size={18} color="#B45309" />
+        <Text style={styles.warningText}>
+          Pastikan laporan yang Anda kirim sesuai fakta. Laporan palsu atau tidak bertanggung jawab
+          dapat dikenakan sanksi sesuai aturan desa yang berlaku.
+        </Text>
+      </View>
+
+      <Text style={styles.backHint}>
+        Tekan <Text style={{ fontWeight: "700", color: COLORS.primary }}>←</Text> untuk mengubah data.
+      </Text>
+    </View>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+const MAX_BUKTI = 5;
+
 export default function BuatPengaduanScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
+  const router   = useRouter();
+  const insets   = useSafeAreaInsets();
   const footerPb = Math.max(insets.bottom, SPACING.md);
 
-  // Data
   const [kategoriList, setKategoriList] = useState<KategoriAduan[]>([]);
   const [loadingInit, setLoadingInit]   = useState(true);
   const [submitting, setSubmitting]     = useState(false);
   const [step, setStep]                 = useState<1 | 2>(1);
 
   // Form fields
-  const [selectedKat, setSelectedKat]   = useState<KategoriAduan | null>(null);
-  const [judul, setJudul]               = useState("");
-  const [deskripsi, setDeskripsi]       = useState("");
-  const [buktiList, setBuktiList]       = useState<BuktiItem[]>([]);
-  const [lokasi, setLokasi]             = useState("");
+  const [selectedKat, setSelectedKat] = useState<KategoriAduan | null>(null);
+  const [judul, setJudul]             = useState("");
+  const [deskripsi, setDeskripsi]     = useState("");
+  const [buktiList, setBuktiList]     = useState<BuktiItem[]>([]);
+  const [lokasi, setLokasi]           = useState("");
 
   // Modal
   const [katModal, setKatModal] = useState(false);
@@ -120,10 +383,23 @@ export default function BuatPengaduanScreen() {
       .finally(() => setLoadingInit(false));
   }, []);
 
-  // ── Upload bukti (camera/gallery) ──────────────────────────────────────────
-  const MAX_BUKTI = 5;
+  // ── Callbacks — stable references ─────────────────────────────────────────
+  const handleJudulChange     = useCallback((v: string) => setJudul(v), []);
+  const handleDeskripsiChange = useCallback((v: string) => setDeskripsi(v), []);
+  const handleLokasiChange    = useCallback((v: string) => setLokasi(v), []);
+  const handleOpenKatModal    = useCallback(() => setKatModal(true), []);
+  const handleHapusBukti      = useCallback((i: number) => setBuktiList((prev) => prev.filter((_, idx) => idx !== i)), []);
 
-  const handleTambahBukti = () => {
+  // ── Upload bukti ──────────────────────────────────────────────────────────
+  const addBukti = useCallback((asset: ImagePicker.ImagePickerAsset) => {
+    const ext  = asset.uri.split(".").pop() ?? "jpg";
+    const mime = asset.mimeType ?? `image/${ext}`;
+    setBuktiList((prev) =>
+      [...prev, { uri: asset.uri, name: `bukti_${Date.now()}.${ext}`, type: mime }].slice(0, MAX_BUKTI),
+    );
+  }, []);
+
+  const handleTambahBukti = useCallback(() => {
     if (buktiList.length >= MAX_BUKTI) {
       Alert.alert("Batas Foto", `Maksimal ${MAX_BUKTI} foto/gambar bukti.`);
       return;
@@ -153,19 +429,9 @@ export default function BuatPengaduanScreen() {
       },
       { text: "Batal", style: "cancel" },
     ]);
-  };
+  }, [buktiList.length, addBukti]);
 
-  const addBukti = (asset: ImagePicker.ImagePickerAsset) => {
-    const ext  = asset.uri.split(".").pop() ?? "jpg";
-    const mime = asset.mimeType ?? `image/${ext}`;
-    setBuktiList((prev) =>
-      [...prev, { uri: asset.uri, name: `bukti_${Date.now()}.${ext}`, type: mime }].slice(0, MAX_BUKTI),
-    );
-  };
-
-  const hapusBukti = (idx: number) => setBuktiList((prev) => prev.filter((_, i) => i !== idx));
-
-  // ── Validasi & navigasi step ───────────────────────────────────────────────
+  // ── Validasi & step navigation ────────────────────────────────────────────
   const goNext = () => {
     if (!selectedKat)      return Alert.alert("Perhatian", "Pilih kategori laporan terlebih dahulu.");
     if (!judul.trim())     return Alert.alert("Perhatian", "Judul laporan tidak boleh kosong.");
@@ -224,7 +490,7 @@ export default function BuatPengaduanScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       {/* ── Step Indicator ── */}
       <View style={styles.indicatorWrap}>
@@ -234,11 +500,34 @@ export default function BuatPengaduanScreen() {
       {/* ── Scroll Content ── */}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 + footerPb }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {step === 1 ? <Step1Form /> : <Step2Konfirmasi />}
+        {step === 1 ? (
+          <Step1Form
+            selectedKat={selectedKat}
+            judul={judul}
+            deskripsi={deskripsi}
+            lokasi={lokasi}
+            buktiList={buktiList}
+            maxBukti={MAX_BUKTI}
+            onJudulChange={handleJudulChange}
+            onDeskripsiChange={handleDeskripsiChange}
+            onLokasiChange={handleLokasiChange}
+            onOpenKatModal={handleOpenKatModal}
+            onTambahBukti={handleTambahBukti}
+            onHapusBukti={handleHapusBukti}
+          />
+        ) : (
+          <Step2Konfirmasi
+            selectedKat={selectedKat}
+            judul={judul}
+            deskripsi={deskripsi}
+            lokasi={lokasi}
+            buktiList={buktiList}
+          />
+        )}
       </ScrollView>
 
       {/* ── Footer ── */}
@@ -308,239 +597,6 @@ export default function BuatPengaduanScreen() {
       </Modal>
     </KeyboardAvoidingView>
   );
-
-  // ── Step 1 ─────────────────────────────────────────────────────────────────
-  function Step1Form() {
-    return (
-      <View style={styles.stepWrap}>
-        <Text style={styles.stepTitle}>Detail Laporan</Text>
-        <Text style={styles.stepSub}>Isi informasi kejadian dengan lengkap dan jelas.</Text>
-
-        {/* KATEGORI */}
-        <Text style={styles.fieldLabel}>
-          Kategori Laporan <Text style={styles.req}>*</Text>
-        </Text>
-        <TouchableOpacity
-          style={[styles.dropdownBtn, !selectedKat && styles.dropdownBtnEmpty]}
-          onPress={() => setKatModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name="pricetag-outline"
-            size={18}
-            color={selectedKat ? COLORS.primary : COLORS.textMuted}
-          />
-          <Text style={[styles.dropdownText, !selectedKat && styles.dropdownPlaceholder]}>
-            {selectedKat ? selectedKat.nama_kategori : "Pilih kategori laporan…"}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} />
-        </TouchableOpacity>
-
-        {/* JUDUL */}
-        <Text style={[styles.fieldLabel, { marginTop: SPACING.xl }]}>
-          Judul Laporan <Text style={styles.req}>*</Text>
-        </Text>
-        <View style={styles.inputWrap}>
-          <TextInput
-            style={styles.input}
-            placeholder="Contoh: Jalan rusak di Gang Mawar RT 02"
-            placeholderTextColor={COLORS.textPlaceholder}
-            value={judul}
-            onChangeText={setJudul}
-            maxLength={120}
-          />
-        </View>
-
-        {/* DESKRIPSI */}
-        <Text style={[styles.fieldLabel, { marginTop: SPACING.lg }]}>
-          Deskripsi Kejadian <Text style={styles.req}>*</Text>
-        </Text>
-        <View style={styles.inputWrap}>
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            placeholder={"Jelaskan secara rinci:\n• Waktu dan tempat kejadian\n• Kronologi masalah\n• Dampak yang dirasakan"}
-            placeholderTextColor={COLORS.textPlaceholder}
-            multiline
-            numberOfLines={6}
-            value={deskripsi}
-            onChangeText={setDeskripsi}
-            maxLength={2000}
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{deskripsi.length}/2000</Text>
-        </View>
-
-        {/* UPLOAD BUKTI */}
-        <Text style={[styles.fieldLabel, { marginTop: SPACING.lg }]}>
-          Bukti Foto{" "}
-          <Text style={styles.optional}>(opsional, maks. {MAX_BUKTI})</Text>
-        </Text>
-
-        {buktiList.length > 0 && (
-          <View style={styles.buktiGrid}>
-            {buktiList.map((b, i) => (
-              <View key={i} style={styles.buktiItem}>
-                <Image source={{ uri: b.uri }} style={styles.buktiThumb} resizeMode="cover" />
-                <TouchableOpacity
-                  style={styles.buktiDelete}
-                  onPress={() => hapusBukti(i)}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons name="close" size={11} color={COLORS.white} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {buktiList.length < MAX_BUKTI && (
-          <TouchableOpacity style={styles.uploadBox} onPress={handleTambahBukti} activeOpacity={0.75}>
-            <View style={styles.uploadIconWrap}>
-              <Ionicons name="camera-outline" size={26} color={COLORS.primary} />
-            </View>
-            <Text style={styles.uploadTitle}>
-              {buktiList.length === 0 ? "Tambah Foto Bukti" : `Tambah Lagi (${buktiList.length}/${MAX_BUKTI})`}
-            </Text>
-            <Text style={styles.uploadSub}>Kamera atau galeri • JPG/PNG</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* LOKASI */}
-        <Text style={[styles.fieldLabel, { marginTop: SPACING.xl }]}>
-          Lokasi Kejadian{" "}
-          <Text style={styles.optional}>(opsional)</Text>
-        </Text>
-        <View style={styles.inputWrap}>
-          <View style={styles.inputRow}>
-            <Ionicons name="location-outline" size={18} color={COLORS.textMuted} style={{ marginRight: SPACING.sm }} />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="Contoh: RT 03 RW 01, Gang Melati No. 12"
-              placeholderTextColor={COLORS.textPlaceholder}
-              value={lokasi}
-              onChangeText={setLokasi}
-              maxLength={200}
-            />
-          </View>
-        </View>
-
-        {/* Map placeholder */}
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={32} color={COLORS.textMuted} />
-          <Text style={styles.mapText}>Pilih titik lokasi di peta</Text>
-          <Text style={styles.mapSub}>Fitur peta interaktif segera hadir</Text>
-        </View>
-
-        {/* Info */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.infoText}>
-            Laporan diproses dalam 1–3 hari kerja. Sertakan foto dan deskripsi yang jelas
-            agar petugas dapat segera menindaklanjuti.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // ── Step 2 ─────────────────────────────────────────────────────────────────
-  function Step2Konfirmasi() {
-    return (
-      <View style={styles.stepWrap}>
-        <Text style={styles.stepTitle}>Konfirmasi Laporan</Text>
-        <Text style={styles.stepSub}>
-          Periksa kembali data Anda sebelum mengirim laporan.
-        </Text>
-
-        {/* Summary card */}
-        <View style={styles.summaryCard}>
-          {/* Kategori */}
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryIcon, { backgroundColor: "#EDE9FE" }]}>
-              <Ionicons name="pricetag-outline" size={16} color="#7C3AED" />
-            </View>
-            <View style={styles.summaryBody}>
-              <Text style={styles.summaryKey}>Kategori Laporan</Text>
-              <Text style={styles.summaryVal}>{selectedKat?.nama_kategori}</Text>
-            </View>
-          </View>
-          <View style={styles.summaryDivider} />
-
-          {/* Judul */}
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryIcon, { backgroundColor: COLORS.primaryLight }]}>
-              <Ionicons name="document-text-outline" size={16} color={COLORS.primary} />
-            </View>
-            <View style={styles.summaryBody}>
-              <Text style={styles.summaryKey}>Judul Laporan</Text>
-              <Text style={styles.summaryVal}>{judul}</Text>
-            </View>
-          </View>
-          <View style={styles.summaryDivider} />
-
-          {/* Deskripsi */}
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryIcon, { backgroundColor: COLORS.infoLight }]}>
-              <Ionicons name="chatbubble-outline" size={16} color={COLORS.info} />
-            </View>
-            <View style={styles.summaryBody}>
-              <Text style={styles.summaryKey}>Deskripsi Kejadian</Text>
-              <Text style={styles.summaryVal} numberOfLines={4}>{deskripsi}</Text>
-            </View>
-          </View>
-
-          {/* Bukti */}
-          {buktiList.length > 0 && (
-            <>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: COLORS.successLight }]}>
-                  <Ionicons name="images-outline" size={16} color={COLORS.success} />
-                </View>
-                <View style={styles.summaryBody}>
-                  <Text style={styles.summaryKey}>Bukti Foto</Text>
-                  <View style={styles.buktiPreviewRow}>
-                    {buktiList.map((b, i) => (
-                      <Image key={i} source={{ uri: b.uri }} style={styles.buktiPreviewThumb} resizeMode="cover" />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            </>
-          )}
-
-          {/* Lokasi */}
-          {lokasi.trim() !== "" && (
-            <>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: COLORS.warningLight }]}>
-                  <Ionicons name="location-outline" size={16} color={COLORS.warning} />
-                </View>
-                <View style={styles.summaryBody}>
-                  <Text style={styles.summaryKey}>Lokasi Kejadian</Text>
-                  <Text style={styles.summaryVal}>{lokasi}</Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Warning */}
-        <View style={styles.warningBox}>
-          <Ionicons name="warning-outline" size={18} color="#B45309" />
-          <Text style={styles.warningText}>
-            Pastikan laporan yang Anda kirim sesuai fakta. Laporan palsu atau tidak bertanggung jawab
-            dapat dikenakan sanksi sesuai aturan desa yang berlaku.
-          </Text>
-        </View>
-
-        <Text style={styles.backHint}>
-          Tekan <Text style={{ fontWeight: "700", color: COLORS.primary }}>←</Text> untuk mengubah data.
-        </Text>
-      </View>
-    );
-  }
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -593,7 +649,7 @@ const styles = StyleSheet.create({
   inputRow:  { flexDirection: "row", alignItems: "center" },
   charCount: { textAlign: "right", fontSize: FONT.xs, color: COLORS.textMuted, paddingBottom: SPACING.xs },
 
-  // Bukti grid (after selecting)
+  // Bukti grid
   buktiGrid: {
     flexDirection: "row", flexWrap: "wrap",
     gap: SPACING.sm, marginBottom: SPACING.sm,

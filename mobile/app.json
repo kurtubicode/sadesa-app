@@ -8,10 +8,14 @@
     "scheme": "sadesamobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+    "updates": {
+      "enabled": false
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

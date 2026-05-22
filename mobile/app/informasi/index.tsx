@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "@/lib/api";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 
@@ -39,6 +40,7 @@ function formatTanggal(iso: string) {
 
 export default function InformasiDesaScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [data, setData]             = useState<Konten[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,7 +105,7 @@ export default function InformasiDesaScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.xl }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -168,7 +170,7 @@ const styles = StyleSheet.create({
   filterText:       { fontSize: FONT.sm, color: COLORS.textSecondary, fontWeight: "600" },
   filterTextActive: { color: COLORS.white },
 
-  // List
+  // List — paddingBottom set dynamically via contentContainerStyle prop
   listContent: { padding: SPACING.lg, gap: SPACING.md },
 
   // Card

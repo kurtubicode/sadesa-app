@@ -300,7 +300,7 @@ export default function StatusScreen() {
         <FlatList
           data={activeFeed}
           keyExtractor={(i) => i.key}
-          contentContainerStyle={s.listContent}
+          contentContainerStyle={[s.listContent, { paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.xl }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

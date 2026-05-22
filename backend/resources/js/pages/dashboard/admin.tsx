@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     BarChart3,
     ClipboardList,
@@ -6,6 +6,7 @@ import {
     Megaphone,
     Settings,
     ShieldCheck,
+    UserCheck,
     Users,
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
@@ -19,6 +20,7 @@ interface Stats {
     total_pengajuan: number;
     pengajuan_hari_ini: number;
     pengaduan_baru: number;
+    verifikasi_menunggu: number;
 }
 
 interface LogItem {
@@ -76,11 +78,15 @@ function QuickAction({
     description,
     icon,
     color = 'teal',
+    href,
+    badge,
 }: {
     title: string;
     description: string;
     icon: React.ReactNode;
     color?: 'teal' | 'blue' | 'purple' | 'amber';
+    href?: string;
+    badge?: number;
 }) {
     const btnColor = {
         teal:   'bg-teal-600 hover:bg-teal-700',
@@ -90,13 +96,24 @@ function QuickAction({
     };
 
     return (
-        <div className="group rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
-            <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${btnColor[color]} text-white transition-transform group-hover:scale-110`}>
-                {icon}
+        <button
+            type="button"
+            onClick={() => href && router.visit(href)}
+            className="group w-full rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md text-left cursor-pointer disabled:cursor-default"
+        >
+            <div className="relative mb-4 inline-flex">
+                <div className={`h-12 w-12 items-center flex justify-center rounded-lg ${btnColor[color]} text-white transition-transform group-hover:scale-110`}>
+                    {icon}
+                </div>
+                {badge !== undefined && badge > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {badge > 99 ? '99+' : badge}
+                    </span>
+                )}
             </div>
             <h3 className="mb-2 font-semibold text-foreground">{title}</h3>
             <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
+        </button>
     );
 }
 
@@ -118,18 +135,18 @@ export default function DashboardAdmin({ stats, recent_logs }: Props) {
                 </div>
 
                 {/* Statistik */}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                     <StatCard
                         title="Total Pengguna"
                         value={stats.total_users}
-                        subtitle="Admin, Staff, Kepala Desa"
+                        subtitle="Semua role"
                         icon={<Users className="h-7 w-7" />}
                         color="teal"
                     />
                     <StatCard
                         title="Total Pengajuan"
                         value={stats.total_pengajuan}
-                        subtitle="Sejak pertama kali"
+                        subtitle="Sepanjang waktu"
                         icon={<Copy className="h-7 w-7" />}
                         color="blue"
                     />
@@ -147,35 +164,47 @@ export default function DashboardAdmin({ stats, recent_logs }: Props) {
                         icon={<ShieldCheck className="h-7 w-7" />}
                         color="purple"
                     />
+                    <StatCard
+                        title="Verifikasi Warga"
+                        value={stats.verifikasi_menunggu}
+                        subtitle="Menunggu review"
+                        icon={<UserCheck className="h-7 w-7" />}
+                        color="teal"
+                    />
                 </div>
 
                 {/* Quick Actions */}
                 <div>
-                    <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                    <h2 className="mb-4 text-lg font-semibold text-foreground">Akses Cepat</h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <QuickAction
                             title="Kelola Pengguna"
                             description="Tambah, edit, atau nonaktifkan akun"
                             icon={<Users className="h-6 w-6" />}
                             color="teal"
+                            href="/admin/users"
+                        />
+                        <QuickAction
+                            title="Verifikasi Warga"
+                            description="Tinjau KTP/KK warga yang mendaftar"
+                            icon={<UserCheck className="h-6 w-6" />}
+                            color="blue"
+                            href="/admin/verifikasi-warga"
+                            badge={stats.verifikasi_menunggu}
                         />
                         <QuickAction
                             title="Konten Desa"
                             description="Buat berita dan pengumuman"
                             icon={<Copy className="h-6 w-6" />}
-                            color="blue"
-                        />
-                        <QuickAction
-                            title="Pengaturan"
-                            description="Konfigurasi aplikasi"
-                            icon={<Settings className="h-6 w-6" />}
                             color="purple"
+                            href="/admin/konten"
                         />
                         <QuickAction
                             title="Audit Log"
                             description="Riwayat aktivitas sistem"
                             icon={<ClipboardList className="h-6 w-6" />}
                             color="amber"
+                            href="/admin/audit-log"
                         />
                     </div>
                 </div>
@@ -215,13 +244,33 @@ export default function DashboardAdmin({ stats, recent_logs }: Props) {
                     </div>
                 </div>
 
-                {/* Pengaduan notif */}
-                {stats.pengaduan_baru > 0 && (
-                    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-900/10">
-                        <Megaphone className="h-5 w-5 shrink-0 text-amber-600" />
-                        <p className="text-sm text-amber-700 dark:text-amber-400">
-                            Ada <strong>{stats.pengaduan_baru}</strong> pengaduan baru yang belum ditangani.
-                        </p>
+                {/* Alert notifikasi */}
+                {(stats.pengaduan_baru > 0 || stats.verifikasi_menunggu > 0) && (
+                    <div className="flex flex-col gap-2">
+                        {stats.pengaduan_baru > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => router.visit('/admin/pengaduan')}
+                                className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-900/10"
+                            >
+                                <Megaphone className="h-5 w-5 shrink-0 text-amber-600" />
+                                <p className="text-sm text-amber-700 dark:text-amber-400">
+                                    Ada <strong>{stats.pengaduan_baru}</strong> pengaduan baru yang belum ditangani. Klik untuk melihat →
+                                </p>
+                            </button>
+                        )}
+                        {stats.verifikasi_menunggu > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => router.visit('/admin/verifikasi-warga')}
+                                className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/10"
+                            >
+                                <UserCheck className="h-5 w-5 shrink-0 text-blue-600" />
+                                <p className="text-sm text-blue-700 dark:text-blue-400">
+                                    Ada <strong>{stats.verifikasi_menunggu}</strong> pengajuan verifikasi warga yang perlu ditinjau. Klik untuk melihat →
+                                </p>
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

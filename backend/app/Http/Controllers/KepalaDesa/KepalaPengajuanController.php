@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\PengajuanSurat;
 use App\Models\PengesahanPermohonan;
 use App\Models\SuratOutput;
+use App\Notifications\StatusSuratNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -107,6 +108,12 @@ class KepalaPengajuanController extends Controller
             ['status_baru' => $newStatus, 'catatan' => $catatan]
         );
 
+        // Kirim notifikasi ke warga
+        $pengajuan->load('user');
+        try {
+            $pengajuan->user->notify(new StatusSuratNotification($pengajuan));
+        } catch (\Throwable) { /* silent */ }
+
         $pesan = $action === 'setujui'
             ? 'Pengajuan berhasil disetujui. Silakan upload surat yang sudah ditandatangani.'
             : 'Pengajuan ditolak.';
@@ -156,6 +163,12 @@ class KepalaPengajuanController extends Controller
             $pengajuan->id,
             ['no_surat' => $request->no_surat, 'path_file' => $path]
         );
+
+        // Kirim notifikasi surat selesai ke warga
+        $pengajuan->load('user');
+        try {
+            $pengajuan->user->notify(new StatusSuratNotification($pengajuan));
+        } catch (\Throwable) { /* silent */ }
 
         return back()->with('success', 'Surat berhasil diupload. Status pengajuan sekarang Selesai.');
     }
