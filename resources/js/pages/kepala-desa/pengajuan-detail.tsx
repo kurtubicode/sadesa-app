@@ -1,8 +1,36 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle, Download, FileText, Upload, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ChevronDown, ChevronUp, Eye, FileText, User } from 'lucide-react';
+import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+interface Dokumen {
+    id: number;
+    nama_file: string;
+    path_file: string;
+    jenis_dokumen: string;
+    created_at: string;
+}
+
+interface Penduduk {
+    id: number;
+    nik: string;
+    nama: string;
+    tempat_lahir: string | null;
+    tanggal_lahir: string | null;
+    jenis_kelamin: 'L' | 'P' | null;
+    agama: string | null;
+    status_perkawinan: string | null;
+    pekerjaan: string | null;
+    alamat: string | null;
+    no_kk: string | null;
+    jenis_kelamin_label: string;
+    status_perkawinan_label: string;
+    agama_label: string;
+}
 
 interface PengajuanDetail {
     id: number;
@@ -12,27 +40,59 @@ interface PengajuanDetail {
     data_formulir: Record<string, unknown> | null;
     created_at: string;
     updated_at: string;
-    user?: { id: number; name: string; nik: string | null; email: string; phone: string | null } | null;
-    master_surat?: { id: number; nama: string; kode: string; persyaratan: string | null } | null;
-    dokumen_persyaratan?: { id: number; nama_file: string; path_file: string; jenis_dokumen: string; created_at: string }[];
-    verifikasi_berkas?: { catatan: string | null; staff: { name: string } | null; created_at: string } | null;
-    pengesahan_permohonan?: { catatan: string | null; kepala_desa: { name: string } | null; created_at: string } | null;
-    surat_output?: { id: number; no_surat: string; path_file: string; tanggal_surat: string; created_at: string } | null;
+    user?: {
+        id: number;
+        name: string;
+        nik: string | null;
+        email: string;
+        phone: string | null;
+    } | null;
+    master_surat?: {
+        id: number;
+        nama_surat: string;
+        kode: string;
+        persyaratan: string | null;
+    } | null;
+    dokumen_persyaratan?: Dokumen[];
+    verifikasi_berkas?: {
+        catatan: string | null;
+        staff: { name: string } | null;
+        created_at: string;
+    } | null;
+    pengesahan_permohonan?: {
+        catatan: string | null;
+        kepala_desa: { name: string } | null;
+        created_at: string;
+    } | null;
+    surat_output?: {
+        id: number;
+        no_surat: string;
+        path_file: string;
+        tanggal_surat: string;
+        created_at: string;
+    } | null;
 }
 
-interface Props { pengajuan: PengajuanDetail }
+interface Props {
+    pengajuan: PengajuanDetail;
+    penduduk: Penduduk | null;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
     menunggu:            'Menunggu',
-    diproses:            'Diproses',
+    diproses:            'Sedang Diproses',
     diverifikasi:        'Diverifikasi',
     menunggu_pengesahan: 'Menunggu Pengesahan',
-    disetujui:           'Disetujui — Menunggu Upload Surat',
-    ditolak_kepala:      'Ditolak',
+    disetujui:           'Disetujui — Siap Dicetak',
+    ditolak_kepala:      'Ditolak Kepala Desa',
     ditolak_staff:       'Ditolak Petugas',
+    siap_diambil:        'Siap Diambil',
     selesai:             'Selesai',
     dibatalkan:          'Dibatalkan',
 };
+
 const STATUS_COLOR: Record<string, string> = {
     menunggu:            'bg-yellow-100 text-yellow-700',
     diproses:            'bg-blue-100 text-blue-700',
@@ -41,7 +101,8 @@ const STATUS_COLOR: Record<string, string> = {
     disetujui:           'bg-amber-100 text-amber-700',
     ditolak_kepala:      'bg-red-100 text-red-700',
     ditolak_staff:       'bg-red-100 text-red-700',
-    selesai:             'bg-teal-100 text-teal-700',
+    siap_diambil:        'bg-teal-100 text-teal-700',
+    selesai:             'bg-green-100 text-green-700',
     dibatalkan:          'bg-gray-100 text-gray-600',
 };
 
@@ -50,6 +111,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan Surat', href: '/kepala-desa/pengajuan' },
     { title: 'Detail', href: '#' },
 ];
+
+// ─── InfoRow ──────────────────────────────────────────────────────────────────
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     return (
@@ -60,12 +123,211 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     );
 }
 
-// ─── Form Pengesahan ──────────────────────────────────────────────────────────
+// ─── PanelDokumen ─────────────────────────────────────────────────────────────
+
+function PanelDokumen({ dokumen }: { dokumen: Dokumen[] }) {
+    const [selected, setSelected] = useState<Dokumen | null>(dokumen[0] ?? null);
+    const isPdf = (d: Dokumen) =>
+        d.path_file?.toLowerCase().endsWith('.pdf') || d.jenis_dokumen?.toLowerCase().includes('pdf');
+
+    return (
+        <div className="flex h-full flex-col rounded-xl border bg-card shadow-sm overflow-hidden">
+            {/* Tab dokumen */}
+            {dokumen.length > 1 && (
+                <div className="flex gap-1 overflow-x-auto border-b bg-muted/40 p-2">
+                    {dokumen.map(d => (
+                        <button
+                            key={d.id}
+                            onClick={() => setSelected(d)}
+                            className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                                selected?.id === d.id
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {d.jenis_dokumen || d.nama_file}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Viewer */}
+            <div className="flex flex-1 flex-col" style={{ minHeight: '420px' }}>
+                {!selected ? (
+                    <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
+                        Tidak ada dokumen diunggah.
+                    </div>
+                ) : isPdf(selected) ? (
+                    <iframe
+                        key={selected.id}
+                        src={`/storage/${selected.path_file}`}
+                        title={selected.nama_file}
+                        className="h-full w-full flex-1"
+                        style={{ minHeight: '420px' }}
+                    />
+                ) : (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4">
+                        <img
+                            key={selected.id}
+                            src={`/storage/${selected.path_file}`}
+                            alt={selected.nama_file}
+                            className="max-h-[380px] max-w-full rounded-lg object-contain shadow"
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Footer info */}
+            {selected && (
+                <div className="flex items-center justify-between border-t bg-muted/30 px-4 py-2">
+                    <span className="truncate text-xs text-muted-foreground">{selected.nama_file}</span>
+                    <a
+                        href={`/storage/${selected.path_file}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="ml-2 flex-shrink-0 rounded border px-2 py-1 text-xs hover:bg-muted"
+                    >
+                        Buka Baru
+                    </a>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── PanelIdentitas ───────────────────────────────────────────────────────────
+
+function PanelIdentitas({
+    user,
+    penduduk,
+    masterSurat,
+    dataFormulir,
+}: {
+    user: PengajuanDetail['user'];
+    penduduk: Penduduk | null;
+    masterSurat: PengajuanDetail['master_surat'];
+    dataFormulir: PengajuanDetail['data_formulir'];
+}) {
+    return (
+        <div className="space-y-4">
+            {/* Akun Warga */}
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <User className="h-4 w-4" /> Akun Pemohon
+                </h3>
+                <dl>
+                    <InfoRow label="Nama" value={user?.name} />
+                    <InfoRow label="NIK" value={<span className="font-mono">{user?.nik}</span>} />
+                    <InfoRow label="Email" value={user?.email} />
+                    <InfoRow label="Telepon" value={user?.phone} />
+                </dl>
+            </div>
+
+            {/* Data Kependudukan */}
+            {penduduk ? (
+                <div className="rounded-xl border bg-card p-5 shadow-sm">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">Data Kependudukan</h3>
+                    <dl>
+                        <InfoRow label="Nama Lengkap" value={penduduk.nama} />
+                        <InfoRow label="No. KK" value={<span className="font-mono">{penduduk.no_kk}</span>} />
+                        <InfoRow
+                            label="Tempat, Tgl Lahir"
+                            value={
+                                penduduk.tempat_lahir && penduduk.tanggal_lahir
+                                    ? `${penduduk.tempat_lahir}, ${new Date(penduduk.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                                    : penduduk.tempat_lahir ?? penduduk.tanggal_lahir
+                            }
+                        />
+                        <InfoRow label="Jenis Kelamin" value={penduduk.jenis_kelamin_label} />
+                        <InfoRow label="Agama" value={penduduk.agama_label} />
+                        <InfoRow label="Status Perkawinan" value={penduduk.status_perkawinan_label} />
+                        <InfoRow label="Pekerjaan" value={penduduk.pekerjaan} />
+                        <InfoRow label="Alamat" value={penduduk.alamat} />
+                    </dl>
+                </div>
+            ) : (
+                <div className="rounded-xl border bg-amber-50 p-4 dark:bg-amber-900/20">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Data kependudukan tidak ditemukan di penduduk. Ditampilkan data akun saja.
+                    </p>
+                </div>
+            )}
+
+            {/* Jenis Surat */}
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <FileText className="h-4 w-4" /> Jenis Surat
+                </h3>
+                <dl>
+                    <InfoRow
+                        label="Jenis"
+                        value={masterSurat ? `${masterSurat.kode} — ${masterSurat.nama_surat}` : '—'}
+                    />
+                    {masterSurat?.persyaratan && (
+                        <InfoRow label="Persyaratan" value={
+                            <span className="whitespace-pre-wrap text-xs">{masterSurat.persyaratan}</span>
+                        } />
+                    )}
+                </dl>
+            </div>
+
+            {/* Data Formulir */}
+            {dataFormulir && Object.keys(dataFormulir).length > 0 && (
+                <div className="rounded-xl border bg-card p-5 shadow-sm">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">Data Formulir</h3>
+                    <dl>
+                        {Object.entries(dataFormulir).map(([k, v]) => (
+                            <InfoRow key={k} label={k} value={String(v ?? '—')} />
+                        ))}
+                    </dl>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── PreviewSurat (collapsible iframe) ───────────────────────────────────────
+
+function PreviewSurat({ pengajuanId }: { pengajuanId: number }) {
+    const [show, setShow] = useState(false);
+
+    return (
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <button
+                onClick={() => setShow(s => !s)}
+                className="flex w-full items-center justify-between px-5 py-4 text-sm font-semibold text-foreground hover:bg-muted/50 transition-colors"
+            >
+                <span className="flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-violet-500" />
+                    Preview Draft Surat
+                </span>
+                {show ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+            {show && (
+                <div className="border-t">
+                    <iframe
+                        src={`/kepala-desa/pengajuan/${pengajuanId}/preview-surat`}
+                        title="Preview Surat"
+                        className="h-[700px] w-full"
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── FormPengesahan ───────────────────────────────────────────────────────────
 
 function FormPengesahan({ pengajuanId }: { pengajuanId: number }) {
     const form = useForm({ action: 'setujui', catatan: '' });
+    const [konfirmasi, setKonfirmasi] = useState<'setujui' | 'tolak' | null>(null);
 
-    const submit = (action: 'setujui' | 'tolak') => {
+    const handleClick = (action: 'setujui' | 'tolak') => {
+        if (konfirmasi !== action) {
+            setKonfirmasi(action);
+            return;
+        }
+        // Second click → submit
         form.setData('action', action);
         setTimeout(() => {
             form.patch(`/kepala-desa/pengajuan/${pengajuanId}/pengesahan`);
@@ -78,36 +340,57 @@ function FormPengesahan({ pengajuanId }: { pengajuanId: number }) {
 
             <div className="mb-4">
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    Catatan <span className="text-muted-foreground text-xs">(opsional)</span>
+                    Catatan <span className="text-xs text-muted-foreground">(opsional)</span>
                 </label>
                 <textarea
                     value={form.data.catatan}
                     onChange={e => form.setData('catatan', e.target.value)}
-                    rows={4}
+                    rows={3}
                     placeholder="Catatan untuk pemohon…"
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y"
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
                 />
                 {form.errors.catatan && (
                     <p className="mt-1 text-xs text-red-500">{form.errors.catatan}</p>
                 )}
             </div>
 
+            {konfirmasi === 'setujui' && (
+                <div className="mb-3 rounded-lg bg-teal-50 p-3 text-xs text-teal-700 dark:bg-teal-900/20 dark:text-teal-400">
+                    Setelah disahkan, surat akan di-generate otomatis dan bisa dicetak oleh staff.
+                    Klik <strong>Sahkan</strong> sekali lagi untuk konfirmasi.
+                </div>
+            )}
+            {konfirmasi === 'tolak' && (
+                <div className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                    Pengajuan ini akan ditolak dan pemohon akan mendapat notifikasi.
+                    Klik <strong>Tolak</strong> sekali lagi untuk konfirmasi.
+                </div>
+            )}
+
             <div className="flex gap-3">
                 <button
                     type="button"
                     disabled={form.processing}
-                    onClick={() => submit('setujui')}
-                    className="flex-1 rounded-lg bg-teal-600 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-60"
+                    onClick={() => handleClick('setujui')}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                        konfirmasi === 'setujui'
+                            ? 'bg-teal-600 text-white hover:bg-teal-700 ring-2 ring-teal-400'
+                            : 'bg-teal-600 text-white hover:bg-teal-700'
+                    }`}
                 >
-                    ✓ Setujui
+                    {form.processing && form.data.action === 'setujui' ? 'Memproses…' : '✓ Sahkan'}
                 </button>
                 <button
                     type="button"
                     disabled={form.processing}
-                    onClick={() => submit('tolak')}
-                    className="flex-1 rounded-lg border border-red-300 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-900/20"
+                    onClick={() => handleClick('tolak')}
+                    className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                        konfirmasi === 'tolak'
+                            ? 'border-red-500 bg-red-600 text-white hover:bg-red-700 ring-2 ring-red-400'
+                            : 'border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    }`}
                 >
-                    ✕ Tolak
+                    {form.processing && form.data.action === 'tolak' ? 'Memproses…' : '✕ Tolak'}
                 </button>
             </div>
 
@@ -118,137 +401,59 @@ function FormPengesahan({ pengajuanId }: { pengajuanId: number }) {
     );
 }
 
-// ─── Form Upload Surat ────────────────────────────────────────────────────────
+// ─── SuratOutputCard ──────────────────────────────────────────────────────────
+// Kades hanya melihat info surat — download/cetak dilakukan oleh staff.
 
-function FormUploadSurat({ pengajuanId }: { pengajuanId: number }) {
-    const form = useForm<{ file: File | null; no_surat: string; tanggal_surat: string }>({
-        file: null,
-        no_surat: '',
-        tanggal_surat: new Date().toISOString().slice(0, 10),
-    });
-
-    const submit = (e: React.FormEvent) => {
-        e.preventDefault();
-        form.post(`/kepala-desa/pengajuan/${pengajuanId}/surat`, {
-            forceFormData: true,
-        });
-    };
-
-    return (
-        <div className="rounded-xl border-2 border-dashed border-teal-300 bg-teal-50 p-5 dark:border-teal-700 dark:bg-teal-900/20">
-            <h4 className="mb-1 flex items-center gap-2 font-semibold text-teal-800 dark:text-teal-300">
-                <Upload className="h-4 w-4" />
-                Upload Surat Resmi
-            </h4>
-            <p className="mb-4 text-xs text-teal-700 dark:text-teal-400">
-                Upload PDF surat yang sudah ditandatangani. Status akan otomatis berubah menjadi <strong>Selesai</strong>.
-            </p>
-
-            <form onSubmit={submit} className="space-y-3">
-                {/* Nomor Surat */}
-                <div>
-                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
-                        Nomor Surat <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        value={form.data.no_surat}
-                        onChange={e => form.setData('no_surat', e.target.value)}
-                        placeholder="Contoh: 474/001/DS/V/2026"
-                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
-                    />
-                    {form.errors.no_surat && <p className="mt-1 text-xs text-red-500">{form.errors.no_surat}</p>}
-                </div>
-
-                {/* Tanggal Surat */}
-                <div>
-                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
-                        Tanggal Surat <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="date"
-                        value={form.data.tanggal_surat}
-                        onChange={e => form.setData('tanggal_surat', e.target.value)}
-                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
-                    />
-                    {form.errors.tanggal_surat && <p className="mt-1 text-xs text-red-500">{form.errors.tanggal_surat}</p>}
-                </div>
-
-                {/* File PDF */}
-                <div>
-                    <label className="mb-1 block text-xs font-semibold text-teal-800 dark:text-teal-300">
-                        File PDF Surat <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={e => form.setData('file', e.target.files?.[0] ?? null)}
-                        className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-background"
-                    />
-                    {form.errors.file && <p className="mt-1 text-xs text-red-500">{form.errors.file}</p>}
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={form.processing || !form.data.file}
-                    className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-                >
-                    {form.processing ? 'Mengupload…' : '⬆ Upload & Selesaikan Pengajuan'}
-                </button>
-            </form>
-        </div>
-    );
-}
-
-// ─── Surat Output Card ────────────────────────────────────────────────────────
-
-function SuratOutputCard({ suratOutput }: {
+function SuratOutputCard({
+    suratOutput,
+}: {
     suratOutput: NonNullable<PengajuanDetail['surat_output']>;
 }) {
     return (
         <div className="rounded-xl border border-teal-200 bg-teal-50 p-5 dark:border-teal-700 dark:bg-teal-900/20">
             <h4 className="mb-3 flex items-center gap-2 font-semibold text-teal-800 dark:text-teal-300">
                 <CheckCircle className="h-4 w-4" />
-                Surat Resmi Diterbitkan
+                Surat Berhasil Di-generate
             </h4>
-            <div className="space-y-2 text-sm">
+            <div className="mb-3 space-y-2 text-sm">
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nomor Surat</span>
+                    <span className="text-teal-700 dark:text-teal-400">Nomor Surat</span>
                     <span className="font-mono font-semibold text-foreground">{suratOutput.no_surat}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tanggal</span>
+                    <span className="text-teal-700 dark:text-teal-400">Tanggal</span>
                     <span className="font-medium text-foreground">
-                        {new Date(suratOutput.tanggal_surat).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {new Date(suratOutput.tanggal_surat).toLocaleDateString('id-ID', {
+                            day: 'numeric', month: 'long', year: 'numeric',
+                        })}
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Diupload</span>
-                    <span className="text-foreground">{new Date(suratOutput.created_at).toLocaleString('id-ID')}</span>
+                    <span className="text-teal-700 dark:text-teal-400">Dibuat</span>
+                    <span className="text-foreground">
+                        {new Date(suratOutput.created_at).toLocaleString('id-ID')}
+                    </span>
                 </div>
             </div>
-            <a
-                href={`/storage/${suratOutput.path_file}`}
-                target="_blank"
-                rel="noopener"
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-teal-400 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100 dark:text-teal-300 dark:hover:bg-teal-900/40"
-            >
-                <Download className="h-4 w-4" />
-                Unduh Surat PDF
-            </a>
+            <p className="rounded-lg bg-teal-100 px-3 py-2 text-center text-xs text-teal-700 dark:bg-teal-900/40 dark:text-teal-400">
+                Surat akan dicetak dan ditandatangani oleh staff, lalu diserahkan ke warga.
+            </p>
         </div>
     );
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function KepalaPengajuanDetail({ pengajuan }: Props) {
+export default function KepalaPengajuanDetail({ pengajuan, penduduk }: Props) {
     const cfg   = STATUS_COLOR[pengajuan.status] ?? 'bg-muted text-muted-foreground';
     const label = STATUS_LABEL[pengajuan.status] ?? pengajuan.status;
 
     const bisaDisahkan  = pengajuan.status === 'menunggu_pengesahan';
-    const bisaUpload    = pengajuan.status === 'disetujui' && !pengajuan.surat_output;
-    const sudahSelesai  = pengajuan.status === 'selesai' && !!pengajuan.surat_output;
+    const adaSuratOutput = !!pengajuan.surat_output;
+    const bisaDownload  = ['disetujui', 'siap_diambil', 'selesai'].includes(pengajuan.status) && adaSuratOutput;
+
+    const dokumen = pengajuan.dokumen_persyaratan ?? [];
+    const showPreview = ['menunggu_pengesahan', 'disetujui', 'siap_diambil', 'selesai'].includes(pengajuan.status);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -256,109 +461,103 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
 
             <div className="flex flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="flex items-center gap-3">
-                    <Link href="/kepala-desa/pengajuan" className="rounded-lg border p-2 hover:bg-muted">
+                <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                        href="/kepala-desa/pengajuan"
+                        className="rounded-lg border p-2 hover:bg-muted transition-colors"
+                    >
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-bold text-foreground">{pengajuan.no_pengajuan}</h1>
-                        <span className={`inline-flex rounded-full px-3 py-0.5 text-xs font-medium ${cfg}`}>
-                            {label}
-                        </span>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex rounded-full px-3 py-0.5 text-xs font-medium ${cfg}`}>
+                                {label}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {pengajuan.master_surat?.nama_surat ?? '—'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                    {/* Kiri: detail */}
-                    <div className="col-span-2 space-y-6">
-                        {/* Data pemohon */}
-                        <div className="rounded-xl border bg-card p-6 shadow-sm">
-                            <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-                                <User className="h-4 w-4" /> Data Pemohon
-                            </h3>
-                            <dl>
-                                <InfoRow label="Nama" value={pengajuan.user?.name} />
-                                <InfoRow label="NIK" value={<span className="font-mono">{pengajuan.user?.nik}</span>} />
-                                <InfoRow label="Email" value={pengajuan.user?.email} />
-                                <InfoRow label="Telepon" value={pengajuan.user?.phone} />
-                            </dl>
-                        </div>
+                {/* Main Grid */}
+                <div className="grid gap-6 xl:grid-cols-3">
 
-                        {/* Data surat */}
-                        <div className="rounded-xl border bg-card p-6 shadow-sm">
-                            <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-                                <FileText className="h-4 w-4" /> Data Pengajuan
-                            </h3>
-                            <dl>
-                                <InfoRow
-                                    label="Jenis Surat"
-                                    value={`${pengajuan.master_surat?.kode} — ${pengajuan.master_surat?.nama}`}
-                                />
-                                <InfoRow
-                                    label="Tanggal Pengajuan"
-                                    value={new Date(pengajuan.created_at).toLocaleString('id-ID')}
-                                />
-                                <InfoRow
-                                    label="Terakhir Diperbarui"
-                                    value={new Date(pengajuan.updated_at).toLocaleString('id-ID')}
-                                />
-                                {pengajuan.catatan && (
-                                    <InfoRow label="Catatan Petugas" value={pengajuan.catatan} />
+                    {/* ── Kolom Utama (2/3) ────────────────────────────────── */}
+                    <div className="xl:col-span-2 space-y-6">
+
+                        {/* Split screen: Dokumen | Identitas */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {/* Panel Kiri — Dokumen */}
+                            <div>
+                                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Dokumen Persyaratan
+                                </h3>
+                                {dokumen.length > 0 ? (
+                                    <PanelDokumen dokumen={dokumen} />
+                                ) : (
+                                    <div className="flex h-40 items-center justify-center rounded-xl border bg-muted/20 text-sm text-muted-foreground">
+                                        Tidak ada dokumen.
+                                    </div>
                                 )}
-                            </dl>
+                            </div>
+
+                            {/* Panel Kanan — Identitas */}
+                            <div>
+                                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Data Pemohon
+                                </h3>
+                                <PanelIdentitas
+                                    user={pengajuan.user}
+                                    penduduk={penduduk}
+                                    masterSurat={pengajuan.master_surat}
+                                    dataFormulir={pengajuan.data_formulir}
+                                />
+                            </div>
                         </div>
 
-                        {/* Dokumen */}
-                        <div className="rounded-xl border bg-card p-6 shadow-sm">
-                            <h3 className="mb-4 font-semibold text-foreground">Dokumen Diunggah</h3>
-                            {(!pengajuan.dokumen_persyaratan || pengajuan.dokumen_persyaratan.length === 0) ? (
-                                <p className="text-sm text-muted-foreground">Belum ada dokumen diunggah.</p>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {pengajuan.dokumen_persyaratan.map(dok => (
-                                        <li key={dok.id} className="flex items-center gap-3 rounded-lg border p-3">
-                                            <span className="text-lg">
-                                                {dok.path_file?.endsWith('.pdf') || dok.jenis_dokumen?.toLowerCase().includes('pdf') ? '📄' : '🖼️'}
-                                            </span>
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-foreground">{dok.nama_file}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {new Date(dok.created_at).toLocaleDateString('id-ID')}
-                                                </p>
-                                            </div>
-                                            <a
-                                                href={`/storage/${dok.path_file}`}
-                                                target="_blank"
-                                                rel="noopener"
-                                                className="rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"
-                                            >
-                                                Buka
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                        {/* Preview Surat */}
+                        {showPreview && (
+                            <PreviewSurat pengajuanId={pengajuan.id} />
+                        )}
                     </div>
 
-                    {/* Kanan: sidebar aksi */}
+                    {/* ── Sidebar (1/3) ─────────────────────────────────────── */}
                     <div className="space-y-4">
-                        {/* Form pengesahan */}
+
+                        {/* Form Pengesahan */}
                         {bisaDisahkan && (
                             <FormPengesahan pengajuanId={pengajuan.id} />
                         )}
 
-                        {/* Riwayat verifikasi staff */}
+                        {/* Surat Output — info saja; download/cetak di halaman staff */}
+                        {bisaDownload && pengajuan.surat_output && (
+                            <SuratOutputCard
+                                suratOutput={pengajuan.surat_output}
+                            />
+                        )}
+
+                        {/* Placeholder jika belum bisa diaksi */}
+                        {!bisaDisahkan && !bisaDownload && (
+                            <div className="rounded-xl border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+                                {['ditolak_kepala', 'ditolak_staff', 'dibatalkan'].includes(pengajuan.status)
+                                    ? 'Pengajuan ini sudah ditolak atau dibatalkan.'
+                                    : 'Pengajuan belum siap untuk disahkan.'}
+                            </div>
+                        )}
+
+                        {/* Riwayat Verifikasi Staff */}
                         {pengajuan.verifikasi_berkas && (
                             <div className="rounded-xl border bg-card p-5 shadow-sm">
-                                <h4 className="mb-3 font-semibold text-foreground">Verifikasi Petugas</h4>
+                                <h4 className="mb-3 text-sm font-semibold text-foreground">Verifikasi Petugas</h4>
                                 <p className="text-sm text-muted-foreground">
                                     Oleh:{' '}
                                     <span className="font-medium text-foreground">
                                         {pengajuan.verifikasi_berkas.staff?.name ?? '—'}
                                     </span>
                                 </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     {new Date(pengajuan.verifikasi_berkas.created_at).toLocaleString('id-ID')}
                                 </p>
                                 {pengajuan.verifikasi_berkas.catatan && (
@@ -369,17 +568,17 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
                             </div>
                         )}
 
-                        {/* Riwayat pengesahan */}
+                        {/* Riwayat Pengesahan */}
                         {pengajuan.pengesahan_permohonan && (
                             <div className="rounded-xl border bg-card p-5 shadow-sm">
-                                <h4 className="mb-3 font-semibold text-foreground">Pengesahan</h4>
+                                <h4 className="mb-3 text-sm font-semibold text-foreground">Keputusan Pengesahan</h4>
                                 <p className="text-sm text-muted-foreground">
                                     Oleh:{' '}
                                     <span className="font-medium text-foreground">
                                         {pengajuan.pengesahan_permohonan.kepala_desa?.name ?? '—'}
                                     </span>
                                 </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     {new Date(pengajuan.pengesahan_permohonan.created_at).toLocaleString('id-ID')}
                                 </p>
                                 {pengajuan.pengesahan_permohonan.catatan && (
@@ -390,21 +589,23 @@ export default function KepalaPengajuanDetail({ pengajuan }: Props) {
                             </div>
                         )}
 
-                        {/* Upload surat setelah disetujui */}
-                        {bisaUpload && (
-                            <FormUploadSurat pengajuanId={pengajuan.id} />
-                        )}
-
-                        {/* Tampilkan surat output yang sudah ada */}
-                        {sudahSelesai && pengajuan.surat_output && (
-                            <SuratOutputCard suratOutput={pengajuan.surat_output} />
-                        )}
-
-                        {!bisaDisahkan && !bisaUpload && !sudahSelesai && !pengajuan.pengesahan_permohonan && (
-                            <div className="rounded-xl border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
-                                Pengajuan ini belum siap untuk disahkan.
-                            </div>
-                        )}
+                        {/* Info Pengajuan */}
+                        <div className="rounded-xl border bg-card p-5 shadow-sm">
+                            <h4 className="mb-3 text-sm font-semibold text-foreground">Info Pengajuan</h4>
+                            <dl>
+                                <InfoRow
+                                    label="Tgl Diajukan"
+                                    value={new Date(pengajuan.created_at).toLocaleString('id-ID')}
+                                />
+                                <InfoRow
+                                    label="Terakhir Update"
+                                    value={new Date(pengajuan.updated_at).toLocaleString('id-ID')}
+                                />
+                                {pengajuan.catatan && (
+                                    <InfoRow label="Catatan" value={pengajuan.catatan} />
+                                )}
+                            </dl>
+                        </div>
                     </div>
                 </div>
             </div>

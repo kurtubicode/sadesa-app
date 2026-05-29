@@ -4,6 +4,8 @@ import {
     Clock,
     FileText,
     Megaphone,
+    PackageCheck,
+    Printer,
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
@@ -13,8 +15,8 @@ import type { BreadcrumbItem } from '@/types';
 
 interface Stats {
     menunggu_verifikasi: number;
-    diproses_hari_ini: number;
-    selesai_hari_ini: number;
+    siap_cetak: number;
+    siap_diambil: number;
     pengaduan_baru: number;
 }
 
@@ -32,40 +34,57 @@ interface Props {
     antrian: AntrianItem[];
 }
 
-// ─── TaskCard ─────────────────────────────────────────────────────────────────
+// ─── StatCard — sama persis dengan admin dashboard ────────────────────────────
 
-function TaskCard({
-    title, count, icon, color = 'teal',
+function StatCard({
+    title, value, subtitle, icon, color = 'teal',
 }: {
-    title: string; count: number; icon: React.ReactNode;
-    color?: 'teal' | 'blue' | 'amber' | 'green';
+    title: string; value: string | number; subtitle?: string;
+    icon: React.ReactNode; color?: 'teal' | 'blue' | 'amber' | 'green' | 'red' | 'purple';
 }) {
-    const borderColor = {
-        teal:  'border-l-teal-500  bg-teal-50  dark:bg-teal-900/10',
-        blue:  'border-l-blue-500  bg-blue-50  dark:bg-blue-900/10',
-        amber: 'border-l-amber-500 bg-amber-50 dark:bg-amber-900/10',
-        green: 'border-l-green-500 bg-green-50 dark:bg-green-900/10',
-    };
-
-    const iconColor = {
-        teal:  'text-teal-600  dark:text-teal-400',
-        blue:  'text-blue-600  dark:text-blue-400',
-        amber: 'text-amber-600 dark:text-amber-400',
-        green: 'text-green-600 dark:text-green-400',
+    const iconBg: Record<string, string> = {
+        teal:   'bg-teal-600    text-white',
+        blue:   'bg-blue-600    text-white',
+        amber:  'bg-amber-500   text-white',
+        green:  'bg-emerald-600 text-white',
+        red:    'bg-red-500     text-white',
+        purple: 'bg-purple-600  text-white',
     };
 
     return (
-        <div className={`rounded-xl border border-l-4 ${borderColor[color]} p-6 shadow-sm`}>
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                     <p className="mb-1 text-sm font-medium text-muted-foreground">{title}</p>
-                    <h3 className="text-3xl font-bold text-foreground">{count}</h3>
+                    <h3 className="mb-1 text-2xl font-bold text-foreground">{value}</h3>
+                    {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
                 </div>
-                <div className={iconColor[color]}>{icon}</div>
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${iconBg[color]}`}>
+                    {icon}
+                </div>
             </div>
         </div>
     );
 }
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = {
+    menunggu:     'Menunggu',
+    disetujui:    'Siap Cetak',
+    siap_diambil: 'Siap Diambil',
+};
+const STATUS_COLOR: Record<string, string> = {
+    menunggu:     'bg-amber-100  text-amber-700  dark:bg-amber-900/30  dark:text-amber-400',
+    disetujui:    'bg-teal-100   text-teal-700   dark:bg-teal-900/30   dark:text-teal-400',
+    siap_diambil: 'bg-green-100  text-green-700  dark:bg-green-900/30  dark:text-green-400',
+};
+
+const ACTION_LABEL: Record<string, string> = {
+    menunggu:     'Proses',
+    disetujui:    'Cetak',
+    siap_diambil: 'Detail',
+};
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -84,54 +103,77 @@ export default function DashboardStaff({ stats, antrian }: Props) {
                     <p className="text-muted-foreground">Kelola antrian pengajuan surat hari ini</p>
                 </div>
 
-                {/* Task cards */}
-                <div>
-                    <h2 className="mb-4 text-base font-semibold text-foreground">Ringkasan Hari Ini</h2>
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                        <TaskCard
-                            title="Menunggu Verifikasi"
-                            count={stats.menunggu_verifikasi}
-                            icon={<Clock className="h-8 w-8" />}
-                            color="amber"
-                        />
-                        <TaskCard
-                            title="Sedang Diproses"
-                            count={stats.diproses_hari_ini}
-                            icon={<FileText className="h-8 w-8" />}
-                            color="teal"
-                        />
-                        <TaskCard
-                            title="Selesai Diverifikasi"
-                            count={stats.selesai_hari_ini}
-                            icon={<BadgeCheck className="h-8 w-8" />}
-                            color="green"
-                        />
-                        <TaskCard
-                            title="Pengaduan Baru"
-                            count={stats.pengaduan_baru}
-                            icon={<Megaphone className="h-8 w-8" />}
-                            color="blue"
-                        />
-                    </div>
+                {/* Stat cards */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        title="Menunggu Verifikasi"
+                        value={stats.menunggu_verifikasi}
+                        subtitle="Perlu diperiksa"
+                        icon={<Clock className="h-7 w-7" />}
+                        color="amber"
+                    />
+                    <StatCard
+                        title="Siap Dicetak"
+                        value={stats.siap_cetak}
+                        subtitle="Sudah disahkan kades"
+                        icon={<Printer className="h-7 w-7" />}
+                        color="teal"
+                    />
+                    <StatCard
+                        title="Siap Diambil Warga"
+                        value={stats.siap_diambil}
+                        subtitle="Menunggu warga datang"
+                        icon={<PackageCheck className="h-7 w-7" />}
+                        color="green"
+                    />
+                    <StatCard
+                        title="Pengaduan Baru"
+                        value={stats.pengaduan_baru}
+                        subtitle="Belum ditindaklanjuti"
+                        icon={<Megaphone className="h-7 w-7" />}
+                        color="purple"
+                    />
                 </div>
 
-                {/* Alert pengaduan */}
+                {/* Alert — ada pengaduan */}
                 {stats.pengaduan_baru > 0 && (
-                    <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-900/10">
-                        <Megaphone className="h-5 w-5 shrink-0 text-blue-600" />
-                        <p className="text-sm text-blue-700 dark:text-blue-400">
+                    <div className="flex items-center gap-3 rounded-2xl border border-purple-200 bg-purple-50 p-4 dark:border-purple-900/50 dark:bg-purple-900/10">
+                        <Megaphone className="h-5 w-5 shrink-0 text-purple-600 dark:text-purple-400" />
+                        <p className="text-sm text-purple-700 dark:text-purple-400">
                             Ada <strong>{stats.pengaduan_baru}</strong> pengaduan warga yang belum ditindaklanjuti.
                         </p>
+                        <Link
+                            href="/staff/pengaduan"
+                            className="ml-auto shrink-0 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-700"
+                        >
+                            Tinjau →
+                        </Link>
                     </div>
                 )}
 
-                {/* Tabel antrian */}
-                <div className="rounded-xl border bg-card shadow-sm">
+                {/* Alert — ada yang siap cetak */}
+                {stats.siap_cetak > 0 && (
+                    <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900/50 dark:bg-teal-900/10">
+                        <Printer className="h-5 w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                        <p className="text-sm text-teal-700 dark:text-teal-400">
+                            Ada <strong>{stats.siap_cetak}</strong> surat yang sudah disahkan dan perlu dicetak.
+                        </p>
+                        <Link
+                            href="/staff/pengajuan?status=disetujui"
+                            className="ml-auto shrink-0 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700"
+                        >
+                            Cetak Sekarang →
+                        </Link>
+                    </div>
+                )}
+
+                {/* Tabel antrian prioritas */}
+                <div className="rounded-2xl border bg-card shadow-sm">
                     <div className="flex items-center justify-between border-b px-6 py-4">
-                        <h3 className="font-semibold text-foreground">Antrian Pengajuan — Menunggu Verifikasi</h3>
+                        <h3 className="font-semibold text-foreground">Antrian Prioritas</h3>
                         <Link
                             href="/staff/pengajuan"
-                            className="text-sm font-medium text-teal-600 hover:underline"
+                            className="text-sm font-semibold text-teal-700 hover:underline dark:text-teal-400"
                         >
                             Lihat semua →
                         </Link>
@@ -151,6 +193,7 @@ export default function DashboardStaff({ stats, antrian }: Props) {
                                             <th className="pb-3 font-medium text-muted-foreground">No. Pengajuan</th>
                                             <th className="pb-3 font-medium text-muted-foreground">Pemohon</th>
                                             <th className="pb-3 font-medium text-muted-foreground">Jenis Surat</th>
+                                            <th className="pb-3 font-medium text-muted-foreground">Status</th>
                                             <th className="pb-3 font-medium text-muted-foreground">Waktu Masuk</th>
                                             <th className="pb-3 font-medium text-muted-foreground">Aksi</th>
                                         </tr>
@@ -158,13 +201,22 @@ export default function DashboardStaff({ stats, antrian }: Props) {
                                     <tbody>
                                         {antrian.map((item) => (
                                             <tr key={item.id} className="border-b last:border-0">
-                                                <td className="py-3 font-mono text-xs text-muted-foreground">{item.no_pengajuan}</td>
-                                                <td className="py-3 font-medium text-foreground">{item.user?.name ?? '—'}</td>
+                                                <td className="py-3 font-mono text-xs text-muted-foreground">
+                                                    {item.no_pengajuan}
+                                                </td>
+                                                <td className="py-3 font-medium text-foreground">
+                                                    {item.user?.name ?? '—'}
+                                                </td>
                                                 <td className="py-3 text-muted-foreground">
-                                                    <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                                                    <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
                                                         {item.master_surat?.kode}
                                                     </span>
                                                     {item.master_surat?.nama}
+                                                </td>
+                                                <td className="py-3">
+                                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[item.status] ?? 'bg-muted text-muted-foreground'}`}>
+                                                        {STATUS_LABEL[item.status] ?? item.status}
+                                                    </span>
                                                 </td>
                                                 <td className="py-3 text-muted-foreground">
                                                     {new Date(item.created_at).toLocaleString('id-ID', {
@@ -174,9 +226,9 @@ export default function DashboardStaff({ stats, antrian }: Props) {
                                                 <td className="py-3">
                                                     <Link
                                                         href={`/staff/pengajuan/${item.id}`}
-                                                        className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+                                                        className="rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
                                                     >
-                                                        Proses
+                                                        {ACTION_LABEL[item.status] ?? 'Lihat'}
                                                     </Link>
                                                 </td>
                                             </tr>

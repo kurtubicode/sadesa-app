@@ -29,16 +29,18 @@ interface Props {
 
 const STATUS_LABEL: Record<string, string> = {
     menunggu_pengesahan: 'Menunggu Pengesahan',
-    disetujui:           'Disetujui',
+    disetujui:           'Disetujui — Siap Cetak',
     ditolak_kepala:      'Ditolak',
+    siap_diambil:        'Siap Diambil',
     selesai:             'Selesai',
     dibatalkan:          'Dibatalkan',
 };
 const STATUS_COLOR: Record<string, string> = {
     menunggu_pengesahan: 'bg-purple-100 text-purple-700',
-    disetujui:           'bg-green-100 text-green-700',
+    disetujui:           'bg-amber-100 text-amber-700',
     ditolak_kepala:      'bg-red-100 text-red-700',
-    selesai:             'bg-teal-100 text-teal-700',
+    siap_diambil:        'bg-teal-100 text-teal-700',
+    selesai:             'bg-green-100 text-green-700',
     dibatalkan:          'bg-gray-100 text-gray-600',
 };
 

@@ -9,8 +9,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            WilayahSeeder::class,       // harus pertama — users FK ke wilayah
+            WilayahSeeder::class,        // harus pertama — users FK ke wilayah
             UserSeeder::class,
+            PendudukSeeder::class,       // data kependudukan warga (sumber template surat)
             MasterSuratSeeder::class,
             KategoriAduanSeeder::class,
             KontenDesaSeeder::class,

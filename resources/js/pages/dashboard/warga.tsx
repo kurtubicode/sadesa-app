@@ -40,15 +40,16 @@ interface Props {
 }
 
 const PENGAJUAN_STATUS_COLOR: Record<string, string> = {
-    menunggu:            'bg-amber-100 text-amber-700',
-    diproses:            'bg-blue-100 text-blue-700',
-    diverifikasi:        'bg-indigo-100 text-indigo-700',
-    ditolak_staff:       'bg-red-100 text-red-700',
-    menunggu_pengesahan: 'bg-purple-100 text-purple-700',
-    disetujui:           'bg-green-100 text-green-700',
-    ditolak_kepala:      'bg-red-100 text-red-700',
-    selesai:             'bg-teal-100 text-teal-700',
-    dibatalkan:          'bg-gray-100 text-gray-600',
+    menunggu:            'bg-amber-100  text-amber-700  dark:bg-amber-900/30  dark:text-amber-400',
+    diproses:            'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400',
+    diverifikasi:        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    ditolak_staff:       'bg-red-100    text-red-700    dark:bg-red-900/30    dark:text-red-400',
+    menunggu_pengesahan: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    disetujui:           'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    ditolak_kepala:      'bg-red-100    text-red-700    dark:bg-red-900/30    dark:text-red-400',
+    siap_diambil:        'bg-teal-100   text-teal-700   dark:bg-teal-900/30   dark:text-teal-400',
+    selesai:             'bg-green-100  text-green-700  dark:bg-green-900/30  dark:text-green-400',
+    dibatalkan:          'bg-gray-100   text-gray-600   dark:bg-gray-800/50   dark:text-gray-400',
 };
 const PENGAJUAN_STATUS_LABEL: Record<string, string> = {
     menunggu:            'Menunggu',
@@ -58,15 +59,16 @@ const PENGAJUAN_STATUS_LABEL: Record<string, string> = {
     menunggu_pengesahan: 'Menunggu Pengesahan',
     disetujui:           'Disetujui',
     ditolak_kepala:      'Ditolak',
+    siap_diambil:        'Siap Diambil!',
     selesai:             'Selesai',
     dibatalkan:          'Dibatalkan',
 };
 
 const PENGADUAN_STATUS_COLOR: Record<string, string> = {
-    menunggu:  'bg-amber-100 text-amber-700',
-    diproses:  'bg-blue-100 text-blue-700',
-    selesai:   'bg-green-100 text-green-700',
-    ditolak:   'bg-red-100 text-red-700',
+    menunggu: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    diproses: 'bg-blue-100  text-blue-700  dark:bg-blue-900/30  dark:text-blue-400',
+    selesai:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    ditolak:  'bg-red-100   text-red-700   dark:bg-red-900/30   dark:text-red-400',
 };
 const PENGADUAN_STATUS_LABEL: Record<string, string> = {
     menunggu: 'Menunggu', diproses: 'Diproses', selesai: 'Selesai', ditolak: 'Ditolak',
@@ -74,18 +76,26 @@ const PENGADUAN_STATUS_LABEL: Record<string, string> = {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard() }];
 
-function StatCard({ label, value, icon, color }: {
+function StatCard({ label, value, icon, color = 'teal' }: {
     label: string; value: number;
-    icon: React.ReactNode; color: string;
+    icon: React.ReactNode; color?: 'teal' | 'blue' | 'green' | 'amber' | 'purple';
 }) {
+    const iconBg: Record<string, string> = {
+        teal:   'bg-teal-600    text-white',
+        blue:   'bg-blue-600    text-white',
+        green:  'bg-emerald-600 text-white',
+        amber:  'bg-amber-500   text-white',
+        purple: 'bg-purple-600  text-white',
+    };
+
     return (
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-3xl font-bold text-foreground">{value}</p>
+                <div className="flex-1">
+                    <p className="mb-1 text-sm font-medium text-muted-foreground">{label}</p>
+                    <p className="text-3xl font-bold text-foreground">{value}</p>
                 </div>
-                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${color}`}>
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${iconBg[color]}`}>
                     {icon}
                 </div>
             </div>
@@ -111,19 +121,19 @@ export default function DashboardWarga({ stats, recent_pengajuan, recent_pengadu
                         label="Total Pengajuan Surat"
                         value={stats.total_pengajuan}
                         icon={<FileText className="h-6 w-6" />}
-                        color="bg-teal-100 text-teal-600"
+                        color="teal"
                     />
                     <StatCard
                         label="Total Pengaduan"
                         value={stats.total_pengaduan}
                         icon={<Megaphone className="h-6 w-6" />}
-                        color="bg-blue-100 text-blue-600"
+                        color="blue"
                     />
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     {/* Pengajuan terbaru */}
-                    <div className="rounded-xl border bg-card shadow-sm">
+                    <div className="rounded-2xl border bg-card shadow-sm">
                         <div className="flex items-center justify-between border-b px-5 py-4">
                             <h3 className="font-semibold text-foreground">Pengajuan Surat Terbaru</h3>
                         </div>
@@ -155,7 +165,7 @@ export default function DashboardWarga({ stats, recent_pengajuan, recent_pengadu
                     </div>
 
                     {/* Pengaduan terbaru */}
-                    <div className="rounded-xl border bg-card shadow-sm">
+                    <div className="rounded-2xl border bg-card shadow-sm">
                         <div className="flex items-center justify-between border-b px-5 py-4">
                             <h3 className="font-semibold text-foreground">Pengaduan Terbaru</h3>
                         </div>
@@ -184,12 +194,12 @@ export default function DashboardWarga({ stats, recent_pengajuan, recent_pengadu
 
                 {/* Informasi terbaru */}
                 {recent_informasi.length > 0 && (
-                    <div className="rounded-xl border bg-card shadow-sm">
+                    <div className="rounded-2xl border bg-card shadow-sm">
                         <div className="flex items-center justify-between border-b px-5 py-4">
                             <h3 className="flex items-center gap-2 font-semibold text-foreground">
                                 <BookOpen className="h-4 w-4" /> Informasi Desa Terbaru
                             </h3>
-                            <Link href="/informasi" className="text-sm font-medium text-teal-600 hover:underline">
+                            <Link href="/informasi" className="text-sm font-semibold text-teal-700 hover:underline dark:text-teal-400">
                                 Lihat semua →
                             </Link>
                         </div>

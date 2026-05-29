@@ -189,4 +189,25 @@ class PengajuanSuratController extends Controller
 
         return response()->json(['message' => 'Pengajuan berhasil dibatalkan.']);
     }
+
+    /**
+     * POST /api/pengajuan/{id}/konfirmasi-ambil
+     * Warga konfirmasi surat sudah diambil → status selesai.
+     * Hanya bisa dilakukan saat status = siap_diambil.
+     */
+    public function konfirmasiAmbil(Request $request, int $id)
+    {
+        $pengajuan = PengajuanSurat::where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if ($pengajuan->status !== 'siap_diambil') {
+            return response()->json([
+                'message' => 'Konfirmasi tidak dapat dilakukan. Status surat belum "Siap Diambil".',
+            ], 422);
+        }
+
+        $pengajuan->update(['status' => 'selesai']);
+
+        return response()->json(['message' => 'Terima kasih! Pengajuan surat Anda ditandai selesai.']);
+    }
 }

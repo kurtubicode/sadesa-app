@@ -25,14 +25,15 @@ interface Props { pengajuan: PengajuanDetail }
 const STATUS_LABEL: Record<string, string> = {
     menunggu: 'Menunggu', diproses: 'Diproses', diverifikasi: 'Diverifikasi',
     ditolak_staff: 'Ditolak Petugas', menunggu_pengesahan: 'Menunggu Pengesahan',
-    disetujui: 'Disetujui', ditolak_kepala: 'Ditolak Kepala Desa', selesai: 'Selesai', dibatalkan: 'Dibatalkan',
+    disetujui: 'Disetujui', ditolak_kepala: 'Ditolak Kepala Desa',
+    siap_diambil: 'Siap Diambil', selesai: 'Selesai', dibatalkan: 'Dibatalkan',
 };
 const STATUS_COLOR: Record<string, string> = {
     menunggu: 'bg-amber-100 text-amber-700', diproses: 'bg-blue-100 text-blue-700',
     diverifikasi: 'bg-indigo-100 text-indigo-700', ditolak_staff: 'bg-red-100 text-red-700',
-    menunggu_pengesahan: 'bg-purple-100 text-purple-700', disetujui: 'bg-green-100 text-green-700',
-    ditolak_kepala: 'bg-red-100 text-red-700', selesai: 'bg-teal-100 text-teal-700',
-    dibatalkan: 'bg-gray-100 text-gray-600',
+    menunggu_pengesahan: 'bg-purple-100 text-purple-700', disetujui: 'bg-orange-100 text-orange-700',
+    ditolak_kepala: 'bg-red-100 text-red-700', siap_diambil: 'bg-teal-100 text-teal-700',
+    selesai: 'bg-green-100 text-green-700', dibatalkan: 'bg-gray-100 text-gray-600',
 };
 
 const breadcrumbs: BreadcrumbItem[] = [

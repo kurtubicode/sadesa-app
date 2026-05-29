@@ -6,6 +6,7 @@ import {
     LayoutGrid,
     MapPin,
     Megaphone,
+    NotebookPen,
     Settings,
     ShieldCheck,
     UserCheck,
@@ -39,8 +40,9 @@ const adminNavItems: NavItem[] = [
     { title: 'Master Surat',    href: '/admin/master-surat', icon: ClipboardList },
     { title: 'Data Master',     href: '/admin/data-master',  icon: MapPin },
     { title: 'Konten Desa',     href: '/admin/konten',       icon: BookOpen },
+    { title: 'Buku Tamu',       href: '/admin/buku-tamu',    icon: NotebookPen },
     { title: 'Audit Log',       href: '/admin/audit-log',    icon: ShieldCheck },
-    { title: 'Pengaturan',      href: '/settings',          icon: Settings },
+    { title: 'Pengaturan',      href: '/settings',           icon: Settings },
 ];
 
 const staffNavItems: NavItem[] = [
@@ -51,9 +53,9 @@ const staffNavItems: NavItem[] = [
 ];
 
 const kepalDesaNavItems: NavItem[] = [
-    { title: 'Dashboard',         href: dashboard(),              icon: LayoutGrid },
-    { title: 'Pengajuan Surat',   href: '/kepala-desa/pengajuan', icon: ShieldCheck },
-    { title: 'Pengaturan',        href: '/settings',              icon: Settings },
+    { title: 'Dashboard',         href: dashboard(),                  icon: LayoutGrid },
+    { title: 'Pengajuan Surat',   href: '/kepala-desa/pengajuan',     icon: ShieldCheck },
+    { title: 'Pengaturan',        href: '/settings',                  icon: Settings },
 ];
 
 const wargaNavItems: NavItem[] = [

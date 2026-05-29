@@ -18,7 +18,8 @@ class StatusSuratNotification extends Notification
         'disetujui'           => 'Disetujui Kepala Desa',
         'ditolak_staff'       => 'Ditolak Petugas',
         'ditolak_kepala'      => 'Ditolak Kepala Desa',
-        'selesai'             => 'Surat Siap Diunduh',
+        'siap_diambil'        => 'Surat Siap Diambil',
+        'selesai'             => 'Pengajuan Selesai',
         'dibatalkan'          => 'Pengajuan Dibatalkan',
     ];
 
@@ -26,10 +27,11 @@ class StatusSuratNotification extends Notification
         'diproses'            => 'Berkas pengajuan Anda sedang diproses oleh petugas desa.',
         'diverifikasi'        => 'Berkas Anda telah diverifikasi dan diteruskan ke Kepala Desa.',
         'menunggu_pengesahan' => 'Dokumen Anda menunggu pengesahan Kepala Desa.',
-        'disetujui'           => 'Pengajuan Anda telah disetujui oleh Kepala Desa.',
+        'disetujui'           => 'Pengajuan Anda telah disetujui oleh Kepala Desa. Surat sedang dipersiapkan.',
         'ditolak_staff'       => 'Pengajuan Anda ditolak oleh petugas. Periksa catatan untuk detail.',
         'ditolak_kepala'      => 'Pengajuan Anda ditolak oleh Kepala Desa. Periksa catatan untuk detail.',
-        'selesai'             => 'Surat Anda telah selesai dan siap untuk diunduh.',
+        'siap_diambil'        => 'Surat Anda telah selesai diproses dan siap diambil di kantor desa pada jam pelayanan.',
+        'selesai'             => 'Pengajuan surat Anda telah selesai. Terima kasih.',
         'dibatalkan'          => 'Pengajuan Anda telah dibatalkan.',
     ];
 

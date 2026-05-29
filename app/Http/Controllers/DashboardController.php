@@ -30,16 +30,36 @@ class DashboardController extends Controller
 
     private function admin(Request $request): Response
     {
-        $totalUsers           = User::count();
-        $totalPengajuan       = PengajuanSurat::count();
-        $pengajuanHariIni     = PengajuanSurat::whereDate('created_at', today())->count();
-        $pengaduanBaru        = Pengaduan::where('status', 'menunggu')->count();
-        $verifikasiMenunggu   = VerifikasiWarga::where('status', 'menunggu')->count();
+        $totalUsers          = User::count();
+        $totalPengajuan      = PengajuanSurat::count();
+        $pengajuanHariIni    = PengajuanSurat::whereDate('created_at', today())->count();
+        $pengaduanBaru       = Pengaduan::where('status', 'menunggu')->count();
+        $verifikasiMenunggu  = VerifikasiWarga::where('status', 'menunggu')->count();
+        $penggunaBulanIni    = User::whereMonth('created_at', now()->month)
+                                    ->whereYear('created_at', now()->year)
+                                    ->count();
+
+        // Chart: pengajuan per hari 7 hari terakhir
+        $chartMingguan = collect(range(6, 0))->map(function (int $daysAgo) {
+            $date = now()->subDays($daysAgo);
+            return [
+                'label'  => strtoupper($date->locale('id')->isoFormat('ddd')),
+                'jumlah' => PengajuanSurat::whereDate('created_at', $date)->count(),
+            ];
+        })->values();
 
         $recentLogs = AuditLog::with('user:id,name')
             ->latest()
             ->take(5)
-            ->get(['id', 'user_id', 'action', 'created_at']);
+            ->get(['id', 'user_id', 'action', 'model', 'created_at']);
+
+        $recentPengajuan = PengajuanSurat::with([
+                'user:id,name,nik',
+                'masterSurat:id,nama_surat',
+            ])
+            ->latest()
+            ->take(5)
+            ->get(['id', 'user_id', 'master_surat_id', 'status', 'created_at']);
 
         return Inertia::render('dashboard/admin', [
             'stats' => [
@@ -48,8 +68,11 @@ class DashboardController extends Controller
                 'pengajuan_hari_ini'   => $pengajuanHariIni,
                 'pengaduan_baru'       => $pengaduanBaru,
                 'verifikasi_menunggu'  => $verifikasiMenunggu,
+                'pengguna_baru_bulan_ini' => $penggunaBulanIni,
             ],
-            'recent_logs' => $recentLogs,
+            'chart_mingguan'  => $chartMingguan,
+            'recent_logs'     => $recentLogs,
+            'recent_pengajuan' => $recentPengajuan,
         ]);
     }
 
@@ -57,32 +80,40 @@ class DashboardController extends Controller
 
     private function kepalaDesa(Request $request): Response
     {
-        $totalPengajuan          = PengajuanSurat::count();
-        $menungguPengesahan      = PengajuanSurat::where('status', 'menunggu_pengesahan')->count();
-        $disetujuiBulanIni       = PengajuanSurat::where('status', 'disetujui')
+        $totalPengajuan     = PengajuanSurat::count();
+        $menungguPengesahan = PengajuanSurat::where('status', 'menunggu_pengesahan')->count();
+
+        // "Disahkan bulan ini" = semua yang sudah melewati tahap pengesahan
+        $disahkanBulanIni = PengajuanSurat::whereIn('status', ['disetujui', 'siap_diambil', 'selesai'])
             ->whereMonth('updated_at', now()->month)
-            ->count();
-        $ditolakBulanIni         = PengajuanSurat::where('status', 'ditolak_kepala')
-            ->whereMonth('updated_at', now()->month)
-            ->count();
-        $selesaiBulanIni         = PengajuanSurat::where('status', 'selesai')
-            ->whereMonth('updated_at', now()->month)
+            ->whereYear('updated_at', now()->year)
             ->count();
 
+        $ditolakBulanIni = PengajuanSurat::where('status', 'ditolak_kepala')
+            ->whereMonth('updated_at', now()->month)
+            ->whereYear('updated_at', now()->year)
+            ->count();
+
+        $selesaiBulanIni = PengajuanSurat::where('status', 'selesai')
+            ->whereMonth('updated_at', now()->month)
+            ->whereYear('updated_at', now()->year)
+            ->count();
+
+        // Recent: tampilkan yang perlu perhatian kades + yang baru disahkan
         $recentPengajuan = PengajuanSurat::with('user:id,name')
             ->with('masterSurat:id,nama_surat')
-            ->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'ditolak_kepala'])
+            ->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'siap_diambil', 'ditolak_kepala'])
             ->latest()
             ->take(5)
             ->get(['id', 'no_pengajuan', 'user_id', 'master_surat_id', 'status', 'created_at']);
 
         return Inertia::render('dashboard/kepala-desa', [
             'stats' => [
-                'total_pengajuan'       => $totalPengajuan,
-                'menunggu_pengesahan'   => $menungguPengesahan,
-                'disetujui_bulan_ini'   => $disetujuiBulanIni,
-                'ditolak_bulan_ini'     => $ditolakBulanIni,
-                'selesai_bulan_ini'     => $selesaiBulanIni,
+                'total_pengajuan'     => $totalPengajuan,
+                'menunggu_pengesahan' => $menungguPengesahan,
+                'disahkan_bulan_ini'  => $disahkanBulanIni,
+                'ditolak_bulan_ini'   => $ditolakBulanIni,
+                'selesai_bulan_ini'   => $selesaiBulanIni,
             ],
             'recent_pengajuan' => $recentPengajuan,
         ]);
@@ -122,18 +153,26 @@ class DashboardController extends Controller
 
     private function staff(Request $request): Response
     {
+        // Antrian masuk — belum diverifikasi staff
         $menungguVerifikasi = PengajuanSurat::where('status', 'menunggu')->count();
-        $diprosesHariIni    = PengajuanSurat::where('status', 'diproses')
-            ->whereDate('updated_at', today())
-            ->count();
-        $selesaiHariIni     = PengajuanSurat::whereIn('status', ['diverifikasi', 'menunggu_pengesahan'])
-            ->whereDate('updated_at', today())
-            ->count();
-        $pengaduanBaru      = Pengaduan::where('status', 'menunggu')->count();
 
+        // Siap cetak — sudah disahkan kades, tinggal staff cetak + TTD fisik
+        $siapCetak = PengajuanSurat::where('status', 'disetujui')->count();
+
+        // Siap diambil — sudah dicetak, menunggu warga datang
+        $siapDiambil = PengajuanSurat::where('status', 'siap_diambil')->count();
+
+        // Selesai hari ini
+        $selesaiHariIni = PengajuanSurat::where('status', 'selesai')
+            ->whereDate('updated_at', today())
+            ->count();
+
+        $pengaduanBaru = Pengaduan::where('status', 'menunggu')->count();
+
+        // Antrian prioritas: menunggu verifikasi + siap cetak
         $antrian = PengajuanSurat::with('user:id,name')
             ->with('masterSurat:id,nama_surat,kode')
-            ->where('status', 'menunggu')
+            ->whereIn('status', ['menunggu', 'disetujui', 'siap_diambil'])
             ->oldest()
             ->take(10)
             ->get(['id', 'no_pengajuan', 'user_id', 'master_surat_id', 'status', 'created_at']);
@@ -141,8 +180,8 @@ class DashboardController extends Controller
         return Inertia::render('dashboard/staff', [
             'stats' => [
                 'menunggu_verifikasi' => $menungguVerifikasi,
-                'diproses_hari_ini'   => $diprosesHariIni,
-                'selesai_hari_ini'    => $selesaiHariIni,
+                'siap_cetak'          => $siapCetak,
+                'siap_diambil'        => $siapDiambil,
                 'pengaduan_baru'      => $pengaduanBaru,
             ],
             'antrian' => $antrian,

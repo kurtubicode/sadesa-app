@@ -25,6 +25,18 @@ class BukuTamu extends Model
         ];
     }
 
+    /** Auto-generate qr_token saat creating */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (self $model) {
+            if (empty($model->qr_token)) {
+                $model->qr_token = static::generateQrToken();
+            }
+        });
+    }
+
     /** Generate token unik untuk QR code */
     public static function generateQrToken(): string
     {

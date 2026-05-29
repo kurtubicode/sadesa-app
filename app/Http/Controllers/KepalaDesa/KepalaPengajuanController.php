@@ -6,20 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\PengajuanSurat;
 use App\Models\PengesahanPermohonan;
-use App\Models\SuratOutput;
 use App\Notifications\StatusSuratNotification;
+use App\Services\SuratService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 
 class KepalaPengajuanController extends Controller
 {
+    public function __construct(private SuratService $suratService) {}
+
     // ─── Index ────────────────────────────────────────────────────────────────
 
-    public function index(Request $request): Response
+    public function index(Request $request): InertiaResponse
     {
         $query = PengajuanSurat::with([
             'user:id,name,nik',
@@ -29,8 +30,7 @@ class KepalaPengajuanController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         } else {
-            // Default: yang perlu pengesahan kepala desa
-            $query->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'ditolak_kepala']);
+            $query->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'siap_diambil', 'ditolak_kepala']);
         }
 
         if ($request->filled('search')) {
@@ -50,7 +50,7 @@ class KepalaPengajuanController extends Controller
 
     // ─── Show ─────────────────────────────────────────────────────────────────
 
-    public function show(PengajuanSurat $pengajuan): Response
+    public function show(PengajuanSurat $pengajuan): InertiaResponse
     {
         $pengajuan->load([
             'user:id,name,nik,email,phone',
@@ -61,12 +61,33 @@ class KepalaPengajuanController extends Controller
             'suratOutput:id,pengajuan_id,no_surat,path_file,tanggal_surat,created_at',
         ]);
 
+        $penduduk = \App\Models\Penduduk::where('nik', $pengajuan->user->nik)->first();
+
         return Inertia::render('kepala-desa/pengajuan-detail', [
             'pengajuan' => $pengajuan,
+            'penduduk'  => $penduduk,
         ]);
     }
 
+    // ─── Preview surat (HTML, on-the-fly) ────────────────────────────────────
+
+    public function previewSurat(PengajuanSurat $pengajuan): Response
+    {
+        if (! in_array($pengajuan->status, [
+            'menunggu_pengesahan', 'disetujui', 'siap_diambil', 'selesai',
+        ])) {
+            abort(403, 'Preview tidak tersedia untuk status ini.');
+        }
+
+        $html = $this->suratService->previewHtml($pengajuan);
+
+        return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
     // ─── Pengesahan ───────────────────────────────────────────────────────────
+    //
+    //  setujui → status: disetujui + auto-generate PDF → surat_output
+    //  tolak   → status: ditolak_kepala
 
     public function pengesahan(Request $request, PengajuanSurat $pengajuan): RedirectResponse
     {
@@ -79,18 +100,12 @@ class KepalaPengajuanController extends Controller
             return back()->withErrors(['action' => 'Pengajuan ini tidak dapat disahkan.']);
         }
 
-        $action  = $request->action;
-        $catatan = $request->catatan;
-
+        $action    = $request->action;
+        $catatan   = $request->catatan;
         $newStatus = $action === 'setujui' ? 'disetujui' : 'ditolak_kepala';
 
-        // Update status pengajuan
-        $pengajuan->update([
-            'status'  => $newStatus,
-            'catatan' => $catatan,
-        ]);
+        $pengajuan->update(['status' => $newStatus, 'catatan' => $catatan]);
 
-        // Simpan/perbarui record pengesahan_permohonan
         PengesahanPermohonan::updateOrCreate(
             ['pengajuan_id' => $pengajuan->id],
             [
@@ -100,7 +115,6 @@ class KepalaPengajuanController extends Controller
             ]
         );
 
-        // Catat audit log
         AuditLog::catat(
             'pengesahan_pengajuan_' . $action,
             'PengajuanSurat',
@@ -108,68 +122,32 @@ class KepalaPengajuanController extends Controller
             ['status_baru' => $newStatus, 'catatan' => $catatan]
         );
 
-        // Kirim notifikasi ke warga
+        // Jika disetujui → auto-generate PDF surat
+        if ($action === 'setujui') {
+            try {
+                $pengajuan->loadMissing('masterSurat');
+                $this->suratService->generateAndStore($pengajuan);
+            } catch (\Throwable $e) {
+                // Gagal generate tidak membatalkan pengesahan — staff bisa retry
+                AuditLog::catat(
+                    'generate_surat_gagal',
+                    'PengajuanSurat',
+                    $pengajuan->id,
+                    ['error' => $e->getMessage()]
+                );
+            }
+        }
+
         $pengajuan->load('user');
         try {
             $pengajuan->user->notify(new StatusSuratNotification($pengajuan));
         } catch (\Throwable) { /* silent */ }
 
         $pesan = $action === 'setujui'
-            ? 'Pengajuan berhasil disetujui. Silakan upload surat yang sudah ditandatangani.'
+            ? 'Pengajuan disahkan. Surat telah di-generate dan siap dicetak oleh staff.'
             : 'Pengajuan ditolak.';
 
         return redirect("/kepala-desa/pengajuan/{$pengajuan->id}")->with('success', $pesan);
     }
 
-    // ─── Upload Surat Output ──────────────────────────────────────────────────
-
-    /**
-     * POST /kepala-desa/pengajuan/{pengajuan}/surat
-     * Upload PDF surat yang sudah ditandatangani → status menjadi selesai.
-     */
-    public function uploadSurat(Request $request, PengajuanSurat $pengajuan): RedirectResponse
-    {
-        if ($pengajuan->status !== 'disetujui') {
-            return back()->withErrors(['file' => 'Surat hanya dapat diupload setelah pengajuan disetujui.']);
-        }
-
-        $request->validate([
-            'file'          => 'required|file|mimes:pdf|max:10240',
-            'no_surat'      => 'required|string|max:100',
-            'tanggal_surat' => 'required|date',
-        ]);
-
-        // Hapus surat lama jika ada
-        if ($pengajuan->suratOutput) {
-            Storage::disk('public')->delete($pengajuan->suratOutput->path_file);
-            $pengajuan->suratOutput->delete();
-        }
-
-        $path = $request->file('file')->store("surat-output/{$pengajuan->id}", 'public');
-
-        SuratOutput::create([
-            'pengajuan_id'  => $pengajuan->id,
-            'no_surat'      => $request->no_surat,
-            'path_file'     => $path,
-            'tanggal_surat' => $request->tanggal_surat,
-        ]);
-
-        // Set status pengajuan → selesai
-        $pengajuan->update(['status' => 'selesai']);
-
-        AuditLog::catat(
-            'upload_surat_output',
-            'PengajuanSurat',
-            $pengajuan->id,
-            ['no_surat' => $request->no_surat, 'path_file' => $path]
-        );
-
-        // Kirim notifikasi surat selesai ke warga
-        $pengajuan->load('user');
-        try {
-            $pengajuan->user->notify(new StatusSuratNotification($pengajuan));
-        } catch (\Throwable) { /* silent */ }
-
-        return back()->with('success', 'Surat berhasil diupload. Status pengajuan sekarang Selesai.');
-    }
 }

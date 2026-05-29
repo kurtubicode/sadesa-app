@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BukuTamuApiController;
 use App\Http\Controllers\Api\NotifikasiController;
 use App\Http\Controllers\Api\PengaduanController;
 use App\Http\Controllers\Api\PengesahanController;
@@ -191,6 +192,9 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json(['message' => 'Kata sandi berhasil diperbarui.']);
     });
 
+    // ─── BUKU TAMU (semua role yang sudah login) ──────────────
+    Route::post('/buku-tamu', [BukuTamuApiController::class, 'store']);
+
     // ─── VERIFIKASI WARGA (menunggu_verifikasi bisa akses) ────
     Route::middleware('role:warga')->group(function () {
         Route::post('/verifikasi-dokumen',  [VerifikasiWargaController::class, 'upload']);
@@ -205,6 +209,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pengajuan/{id}',                     [PengajuanSuratController::class, 'show']);
         Route::post('/pengajuan/{id}/dokumen',            [PengajuanSuratController::class, 'uploadDokumen']);
         Route::delete('/pengajuan/{id}',                  [PengajuanSuratController::class, 'batalkan']);
+        // Konfirmasi surat sudah diambil (dipakai mobile app)
+        Route::post('/pengajuan/{id}/konfirmasi-ambil',   [PengajuanSuratController::class, 'konfirmasiAmbil']);
 
         // Pengaduan
         Route::get('/pengaduan',                          [PengaduanController::class, 'index']);
