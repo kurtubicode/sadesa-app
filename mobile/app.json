@@ -23,7 +23,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.kurtubisorganization.sadesamobile"
     },
     "web": {
       "output": "static",
@@ -45,12 +46,18 @@
       ],
       "expo-secure-store",
       "expo-font",
-      // "expo-image",
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6b4efda2-4f2b-478d-8dc6-2d03e3d16911"
+      }
+    },
+    "owner": "kurtubis-organization"
   }
 }
