@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\KontenDesa;
+use App\Models\Penduduk;
 use App\Models\Pengaduan;
 use App\Models\PengajuanSurat;
 use App\Models\User;
@@ -123,7 +124,19 @@ class DashboardController extends Controller
 
     private function warga(Request $request): Response
     {
-        $user = $request->user();
+        $user     = $request->user();
+        $penduduk = $user->nik ? Penduduk::where('nik', $user->nik)->first() : null;
+
+        // Profil dianggap lengkap kalau 8 field wajib sudah terisi
+        $profilLengkap = $penduduk !== null
+            && filled($penduduk->nama)
+            && filled($penduduk->tempat_lahir)
+            && $penduduk->tanggal_lahir !== null
+            && filled($penduduk->jenis_kelamin)
+            && filled($penduduk->agama)
+            && filled($penduduk->status_perkawinan)
+            && filled($penduduk->pekerjaan)
+            && filled($penduduk->alamat);
 
         $recentPengajuan = PengajuanSurat::where('user_id', $user->id)
             ->with('masterSurat:id,nama_surat,kode')
@@ -139,6 +152,7 @@ class DashboardController extends Controller
             ->get(['id', 'judul', 'slug', 'tipe', 'created_at']);
 
         return Inertia::render('dashboard/warga', [
+            'profil_lengkap'   => $profilLengkap,
             'stats' => [
                 'total_pengajuan' => PengajuanSurat::where('user_id', $user->id)->count(),
                 'total_pengaduan' => Pengaduan::where('user_id', $user->id)->count(),

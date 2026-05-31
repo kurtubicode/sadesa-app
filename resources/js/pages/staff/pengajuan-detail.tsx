@@ -502,7 +502,7 @@ export default function StaffPengajuanDetail({ pengajuan, penduduk }: Props) {
                             {/* Panel dokumen */}
                             <div className="flex flex-col gap-2">
                                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                                    <FileText className="h-4 w-4" /> Dokumen Persyaratan
+                                    <FileText className="h-4 w-4" /> Dokumen Pendukung
                                 </h3>
                                 <PanelDokumen dokumen={pengajuan.dokumen_persyaratan ?? []} />
                             </div>

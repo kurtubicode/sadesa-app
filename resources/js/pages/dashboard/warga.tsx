@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { BookOpen, FileText, Megaphone } from 'lucide-react';
+import { AlertTriangle, BookOpen, FileText, Megaphone } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -33,6 +33,7 @@ interface InformasiItem {
 }
 
 interface Props {
+    profil_lengkap: boolean;
     stats: Stats;
     recent_pengajuan: PengajuanItem[];
     recent_pengaduan: PengaduanItem[];
@@ -103,7 +104,7 @@ function StatCard({ label, value, icon, color = 'teal' }: {
     );
 }
 
-export default function DashboardWarga({ stats, recent_pengajuan, recent_pengaduan, recent_informasi }: Props) {
+export default function DashboardWarga({ profil_lengkap, stats, recent_pengajuan, recent_pengaduan, recent_informasi }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard | SADESA" />
@@ -112,8 +113,29 @@ export default function DashboardWarga({ stats, recent_pengajuan, recent_pengadu
                 {/* Header */}
                 <div>
                     <h1 className="text-xl font-bold text-foreground">Selamat Datang</h1>
-                    <p className="text-sm text-muted-foreground">Portal Layanan Desa Cirangkong</p>
+                    <p className="text-sm text-muted-foreground">Portal Layanan Desa</p>
                 </div>
+
+                {/* Banner: data diri belum lengkap */}
+                {!profil_lengkap && (
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                                Data kependudukan belum dilengkapi
+                            </p>
+                            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                                Pengajuan surat tidak dapat diproses sebelum data diri diisi dengan lengkap.
+                            </p>
+                        </div>
+                        <Link
+                            href="/warga/data-diri"
+                            className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
+                        >
+                            Lengkapi →
+                        </Link>
+                    </div>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

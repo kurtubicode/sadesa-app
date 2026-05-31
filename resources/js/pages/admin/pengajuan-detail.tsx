@@ -101,7 +101,7 @@ export default function AdminPengajuanDetail({ pengajuan }: Props) {
 
                         {/* Dokumen */}
                         <div className="rounded-xl border bg-card p-6 shadow-sm">
-                            <h3 className="mb-4 font-semibold text-foreground">Dokumen Diunggah</h3>
+                            <h3 className="mb-4 font-semibold text-foreground">Dokumen Pendukung</h3>
                             {(!pengajuan.dokumen_persyaratan || pengajuan.dokumen_persyaratan.length === 0) ? (
                                 <p className="text-sm text-muted-foreground">Belum ada dokumen diunggah.</p>
                             ) : (

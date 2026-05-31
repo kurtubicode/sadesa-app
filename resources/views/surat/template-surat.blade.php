@@ -84,18 +84,33 @@
   <table class="kop-table">
     <tr>
       <td class="kop-logo">
-        {{-- Logo Garuda: tempatkan di public/images/garuda.png --}}
-        @if(file_exists(public_path('images/garuda.png')))
-          <img src="{{ public_path('images/garuda.png') }}" alt="Garuda">
+        @php
+          $logoPath = $settings['kop_logo_path'] ?? 'images/logo-kab-subang.png';
+          $logoFull = public_path($logoPath);
+        @endphp
+        @if(file_exists($logoFull))
+          <img src="{{ $logoFull }}" alt="Logo">
         @else
           <div style="width:60px;height:60px;border:1px solid #999;text-align:center;font-size:7pt;padding-top:20px;color:#999;">LOGO</div>
         @endif
       </td>
       <td class="kop-teks">
-        <div class="baris1">KEPALA DESA CIRANGKONG</div>
-        <div class="baris2">KECAMATAN CIJAMBE</div>
-        <div class="baris3">KABUPATEN SUBANG</div>
-        <div class="alamat">Jl. Raya Cirangkong, Desa Cirangkong, Kecamatan Cijambe, Kabupaten Subang 41281</div>
+        @php
+          $s = $settings ?? [];
+          $kopJabatan   = ($s['kop_jabatan']   ?? 'KEPALA DESA') . ' ' . strtoupper($s['kop_nama_desa'] ?? 'CIRANGKONG');
+          $kopKecamatan = 'KECAMATAN ' . strtoupper($s['kop_kecamatan'] ?? 'CIJAMBE');
+          $kopKabupaten = 'KABUPATEN ' . strtoupper($s['kop_kabupaten'] ?? 'SUBANG');
+          $kopAlamat    = $s['kop_alamat'] ?? '';
+          $kopTelepon   = $s['kop_telepon'] ?? '';
+          $kopKodePOS   = $s['kop_kode_pos'] ?? '';
+          $alamatLengkap = 'Alamat: ' . $kopAlamat;
+          if ($kopTelepon) $alamatLengkap .= '  Telp: ' . $kopTelepon;
+          if ($kopKodePOS) $alamatLengkap .= '  Kode Pos ' . $kopKodePOS;
+        @endphp
+        <div class="baris1">{{ $kopJabatan }}</div>
+        <div class="baris2">{{ $kopKecamatan }}</div>
+        <div class="baris3">{{ $kopKabupaten }}</div>
+        <div class="alamat">{{ $alamatLengkap }}</div>
       </td>
       <td style="width:70px;"></td>{{-- spacer kanan agar teks tengah --}}
     </tr>
@@ -114,8 +129,9 @@
      PEMBUKA
 ════════════════════════════════════════════════════ --}}
 <p class="paragraf">
-  Yang bertanda tangan di bawah ini, Kepala Desa Cirangkong Kecamatan Cijambe
-  Kabupaten Subang, menerangkan bahwa :
+  Yang bertanda tangan di bawah ini, {{ $settings['kades_jabatan'] ?? 'Kepala Desa Cirangkong' }}
+  Kecamatan {{ $settings['kop_kecamatan'] ?? 'Cijambe' }} Kabupaten {{ $settings['kop_kabupaten'] ?? 'Subang' }},
+  menerangkan bahwa :
 </p>
 
 {{-- ═══════════════════════════════════════════════════
@@ -177,30 +193,39 @@
 ════════════════════════════════════════════════════ --}}
 @php $formulir = $pengajuan->data_formulir ?? []; @endphp
 
+@php
+  $desa       = $settings['kop_nama_desa']  ?? 'Cirangkong';
+  $kecamatan  = $settings['kop_kecamatan']  ?? 'Cijambe';
+  $kabupaten  = $settings['kop_kabupaten']  ?? 'Subang';
+@endphp
+
 @switch($masterSurat->kode)
 
-  @case('SKTM')
+  @case('KTR-MSK')
     <p class="paragraf">
-      Nama tersebut di atas adalah benar-benar Penduduk Desa Cirangkong Kecamatan Cijambe
-      Kabupaten Subang, dan menurut keterangan dari RT dan RW bahwa yang bersangkutan
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}, dan menurut keterangan dari RT dan RW bahwa yang bersangkutan
       benar-benar tergolong <strong>tidak mampu</strong> dan Surat Keterangan ini akan
       dipergunakan untuk <strong>{{ $formulir['keperluan'] ?? '...' }}</strong>.
     </p>
     @break
 
-  @case('SDOM')
+  @case('DOM-DLM')
+  @case('DOM-LWY')
+  @case('DOM-LBG')
     <p class="paragraf">
       Nama tersebut di atas adalah benar-benar berdomisili / bertempat tinggal di
-      {{ $penduduk?->alamat ?? '...' }}, Desa Cirangkong Kecamatan Cijambe Kabupaten Subang.
+      {{ $penduduk?->alamat ?? '...' }}, Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}.
       Surat Keterangan Domisili ini dibuat untuk keperluan
       <strong>{{ $formulir['keperluan'] ?? '...' }}</strong>.
     </p>
     @break
 
-  @case('SKU')
+  @case('DOM-USH')
     <p class="paragraf">
-      Nama tersebut di atas adalah benar-benar Penduduk Desa Cirangkong Kecamatan Cijambe
-      Kabupaten Subang dan mempunyai usaha dengan keterangan sebagai berikut :
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }} dan mempunyai usaha dengan keterangan sebagai berikut :
     </p>
     <table class="data-warga" style="margin-bottom:10px;">
       <tr>
@@ -220,24 +245,25 @@
       </tr>
     </table>
     <p class="paragraf">
-      Surat Keterangan Usaha ini dibuat untuk keperluan
+      Surat Keterangan Domisili Usaha ini dibuat untuk keperluan
       <strong>{{ $formulir['keperluan'] ?? '...' }}</strong>.
     </p>
     @break
 
-  @case('PKTP')
+  @case('KTR-PKJ')
     <p class="paragraf">
-      Nama tersebut di atas adalah benar-benar Penduduk Desa Cirangkong Kecamatan Cijambe
-      Kabupaten Subang. Surat Pengantar ini dibuat untuk keperluan pembuatan / perpanjangan
-      <strong>Kartu Tanda Penduduk (KTP)</strong> dengan keperluan
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}, dan benar-benar berprofesi / bermata pencaharian sebagai
+      <strong>{{ $penduduk?->pekerjaan ?? '-' }}</strong>.
+      Surat Keterangan ini dibuat untuk keperluan
       <strong>{{ $formulir['keperluan'] ?? '...' }}</strong>.
     </p>
     @break
 
-  @case('PKK')
+  @case('KTR-PKK')
     <p class="paragraf">
-      Nama tersebut di atas adalah benar-benar Penduduk Desa Cirangkong Kecamatan Cijambe
-      Kabupaten Subang. Surat Pengantar ini dibuat untuk keperluan pembuatan / perubahan
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}. Surat Keterangan ini dibuat untuk keperluan proses
       <strong>Kartu Keluarga (KK)</strong>
       @if(!empty($formulir['nama_anggota']))
         atas nama anggota keluarga <strong>{{ $formulir['nama_anggota'] }}</strong>
@@ -246,10 +272,19 @@
     </p>
     @break
 
+  @case('NKH-LLK')
+  @case('NKH-PRP')
+    <p class="paragraf">
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}. Surat Pengantar Nikah ini dibuat untuk keperluan
+      pendaftaran pernikahan di KUA Kecamatan {{ $kecamatan }}.
+    </p>
+    @break
+
   @default
     <p class="paragraf">
-      Nama tersebut di atas adalah benar-benar Penduduk Desa Cirangkong Kecamatan Cijambe
-      Kabupaten Subang. Surat keterangan ini dibuat untuk keperluan
+      Nama tersebut di atas adalah benar-benar Penduduk Desa {{ $desa }} Kecamatan {{ $kecamatan }}
+      Kabupaten {{ $kabupaten }}. Surat keterangan ini dibuat untuk keperluan
       <strong>{{ $formulir['keperluan'] ?? '...' }}</strong>.
     </p>
 
@@ -285,7 +320,7 @@
         </table>
 
         <div class="ttd-camat">
-          <div class="judul-camat">Mengetahui,<br>CAMAT CIJAMBE</div>
+          <div class="judul-camat">Mengetahui,<br>CAMAT {{ strtoupper($settings['kop_kecamatan'] ?? 'CIJAMBE') }}</div>
           <div style="margin-top:55px;">
             <span style="font-weight:bold;text-decoration:underline;">
               {{ $camat_nama ?? '.................................' }}
@@ -297,9 +332,12 @@
 
       {{-- Kanan: Kepala Desa --}}
       <td class="ttd-kanan">
-        <div class="tanggal-baris">Cirangkong, {{ $tanggal }}</div>
-        <div>Kepala Desa Cirangkong</div>
-        <div><span class="ttd-nama">{{ $kades?->name ?? '........................' }}</span></div>
+        <div class="tanggal-baris">{{ $settings['kop_nama_desa'] ?? 'Cirangkong' }}, {{ $tanggal }}</div>
+        <div>{{ $settings['kades_jabatan'] ?? 'Kepala Desa Cirangkong' }}</div>
+        <div><span class="ttd-nama">{{ $settings['kades_nama'] ?? $kades?->name ?? '........................' }}</span></div>
+        @if(!empty($settings['kades_nip']))
+          <div style="font-size:10pt;">NIP. {{ $settings['kades_nip'] }}</div>
+        @endif
       </td>
     </tr>
   </table>

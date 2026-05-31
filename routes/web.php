@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Warga\WargaDataDiriController;
 use App\Http\Controllers\Admin\AdminBukuTamuController;
 use App\Http\Controllers\BukuTamuController;
 use App\Http\Controllers\Admin\AdminKategoriAduanController;
 use App\Http\Controllers\Admin\AdminKontenController;
 use App\Http\Controllers\Admin\AdminMasterSuratController;
+use App\Http\Controllers\Admin\AdminPengaturanController;
 use App\Http\Controllers\Admin\AdminWilayahController;
 use App\Http\Controllers\Admin\AdminPengaduanController;
 use App\Http\Controllers\Admin\AdminPengajuanController;
@@ -54,6 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('master-surat/{masterSurat}',              [AdminMasterSuratController::class, 'update'])->name('master-surat.update');
         Route::delete('master-surat/{masterSurat}',             [AdminMasterSuratController::class, 'destroy'])->name('master-surat.destroy');
         Route::patch('master-surat/{masterSurat}/toggle',       [AdminMasterSuratController::class, 'toggleActive'])->name('master-surat.toggle');
+        Route::get('master-surat/{masterSurat}/template',       [AdminMasterSuratController::class, 'editTemplate'])->name('master-surat.template');
+        Route::put('master-surat/{masterSurat}/template',       [AdminMasterSuratController::class, 'updateTemplate'])->name('master-surat.template.update');
 
         // Pengajuan Surat
         Route::get('pengajuan',                     [AdminPengajuanController::class, 'index'])->name('pengajuan');
@@ -85,6 +89,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Buku Tamu
         Route::get('buku-tamu',                     [AdminBukuTamuController::class, 'index'])->name('buku-tamu');
+
+        // Pengaturan Desa (Kop Surat)
+        Route::get('pengaturan',                    [AdminPengaturanController::class, 'index'])->name('pengaturan');
+        Route::post('pengaturan',                   [AdminPengaturanController::class, 'update'])->name('pengaturan.update');
     });
 
     // ─── Staff routes ─────────────────────────────────────────────────────────
@@ -104,6 +112,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('pengaduan/{pengaduan}/tanggapi',           [StaffPengaduanController::class, 'tanggapi'])->name('pengaduan.tanggapi');
         Route::patch('pengaduan/{pengaduan}/status',            [StaffPengaduanController::class, 'updateStatus'])->name('pengaduan.status');
 
+    });
+
+    // ─── Warga routes ────────────────────────────────────────────────────────
+    Route::middleware('role:warga')->prefix('warga')->name('warga.')->group(function () {
+        Route::get('data-diri',  [WargaDataDiriController::class, 'index'])->name('data-diri');
+        Route::post('data-diri', [WargaDataDiriController::class, 'update'])->name('data-diri.update');
     });
 
     // ─── Kepala Desa routes ───────────────────────────────────────────────────

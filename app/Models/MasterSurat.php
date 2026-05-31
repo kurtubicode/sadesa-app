@@ -11,7 +11,11 @@ class MasterSurat extends Model
 
     protected $fillable = [
         'kode',
+        'kategori',
+        'nomor_prefix',
+        'kode_bidang',
         'nama_surat',
+        'deskripsi',
         'persyaratan',
         'template',
         'is_active',
@@ -21,6 +25,7 @@ class MasterSurat extends Model
     {
         return [
             'persyaratan' => 'array',
+            'template'    => 'array',
             'is_active'   => 'boolean',
         ];
     }
@@ -33,5 +38,17 @@ class MasterSurat extends Model
     public function scopeAktif($query)
     {
         return $query->where('is_active', true);
+    }
+
+    // Kategori yang tersedia
+    public static function kategoriList(): array
+    {
+        return [
+            'domisili'         => 'Domisili',
+            'ijin'             => 'Ijin',
+            'keterangan'       => 'Keterangan',
+            'keterangan_tanah' => 'Keterangan Tanah',
+            'pengantar_nikah'  => 'Pengantar Nikah',
+        ];
     }
 }

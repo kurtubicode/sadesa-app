@@ -264,7 +264,7 @@ function PanelIdentitas({
                         value={masterSurat ? `${masterSurat.kode} — ${masterSurat.nama_surat}` : '—'}
                     />
                     {masterSurat?.persyaratan && (
-                        <InfoRow label="Persyaratan" value={
+                        <InfoRow label="Dokumen Pendukung" value={
                             <span className="whitespace-pre-wrap text-xs">{masterSurat.persyaratan}</span>
                         } />
                     )}
@@ -492,7 +492,7 @@ export default function KepalaPengajuanDetail({ pengajuan, penduduk }: Props) {
                             {/* Panel Kiri — Dokumen */}
                             <div>
                                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Dokumen Persyaratan
+                                    Dokumen Pendukung
                                 </h3>
                                 {dokumen.length > 0 ? (
                                     <PanelDokumen dokumen={dokumen} />

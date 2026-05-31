@@ -31,11 +31,11 @@ class PengajuanSuratSeeder extends Seeder
         $kades  = User::where('role', 'kepala_desa')->firstOrFail();
 
         // ── Master surat ──────────────────────────────────────────────────────
-        $sktm   = MasterSurat::where('kode', 'SKTM')->firstOrFail();
-        $sdom   = MasterSurat::where('kode', 'SDOM')->firstOrFail();
-        $sku    = MasterSurat::where('kode', 'SKU')->firstOrFail();
-        $pktp   = MasterSurat::where('kode', 'PKTP')->firstOrFail();
-        $pkk    = MasterSurat::where('kode', 'PKK')->firstOrFail();
+        $sktm   = MasterSurat::where('kode', 'KTR-MSK')->firstOrFail();
+        $sdom   = MasterSurat::where('kode', 'DOM-DLM')->firstOrFail();
+        $sku    = MasterSurat::where('kode', 'DOM-USH')->firstOrFail();
+        $pktp   = MasterSurat::where('kode', 'KTR-PKJ')->firstOrFail();
+        $pkk    = MasterSurat::where('kode', 'KTR-PKK')->firstOrFail();
 
         // Bersihkan data lama
         PengajuanSurat::whereIn('user_id', [$warga->id])->each(function ($p) {
