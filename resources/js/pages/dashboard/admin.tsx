@@ -14,6 +14,8 @@ import type { BreadcrumbItem } from '@/types';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Stats {
+    total_penduduk: number;
+    total_warga: number;
     total_users: number;
     total_pengajuan: number;
     pengajuan_hari_ini: number;
@@ -101,33 +103,48 @@ function logDotColor(action: string): string {
     return 'bg-amber-500';
 }
 
-// ─── StatCard ─────────────────────────────────────────────────────────────────
+// ─── StatCard — tile 42 px soft-tint, sesuai design system ──────────────────
+
+type StatTone = 'teal' | 'warn' | 'danger' | 'info';
+
+const TILE_CLS: Record<StatTone, string> = {
+    teal:   'bg-teal-50   text-teal-600',
+    warn:   'bg-yellow-50 text-yellow-600',
+    danger: 'bg-red-50    text-red-600',
+    info:   'bg-blue-50   text-blue-600',
+};
+const BADGE_CLS: Record<StatTone, string> = {
+    teal:   'bg-teal-50   text-teal-700',
+    warn:   'bg-yellow-50 text-yellow-700',
+    danger: 'bg-red-50    text-red-700',
+    info:   'bg-blue-50   text-blue-700',
+};
 
 function StatCard({
-    title, value, icon, iconColor, badge,
+    icon, title, value, badge, tone = 'teal',
 }: {
-    title: string;
-    value: number;
     icon: React.ReactNode;
-    iconColor: string;
-    badge?: { label: string; cls: string } | null;
+    title: string;
+    value: number | string;
+    badge?: string | null;
+    tone?: StatTone;
 }) {
     return (
-        <div className="relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm">
-            {badge && (
-                <span className={`absolute right-4 top-4 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.cls}`}>
-                    {badge.label}
-                </span>
-            )}
-            <div className="flex items-center gap-4">
-                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${iconColor}`}>
+        <div className="rounded-xl border bg-card p-[18px] shadow-sm">
+            <div className="mb-3 flex items-start justify-between">
+                <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg ${TILE_CLS[tone]}`}>
                     {icon}
                 </div>
-                <div>
-                    <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                    <p className="text-2xl font-black text-foreground">{value.toLocaleString('id-ID')}</p>
-                </div>
+                {badge && (
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${BADGE_CLS[tone]}`}>
+                        {badge}
+                    </span>
+                )}
             </div>
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="mt-1 text-[28px] font-bold leading-none tabular-nums text-foreground">
+                {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
+            </p>
         </div>
     );
 }
@@ -233,40 +250,32 @@ export default function DashboardAdmin({ stats, chart_mingguan, recent_logs, rec
                 {/* ── Stat Cards ─────────────────────────────────────────── */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
-                        title="Total Pengguna"
-                        value={stats.total_users}
-                        icon={<Users className="h-7 w-7" />}
-                        iconColor="bg-teal-600 text-white"
-                        badge={stats.pengguna_baru_bulan_ini > 0
-                            ? { label: `+${stats.pengguna_baru_bulan_ini} baru`, cls: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' }
-                            : null}
+                        icon={<Users className="h-[21px] w-[21px]" />}
+                        title="Total Penduduk"
+                        value={stats.total_penduduk}
+                        tone="teal"
+                        badge={stats.pengguna_baru_bulan_ini > 0 ? `+${stats.pengguna_baru_bulan_ini} baru` : null}
                     />
                     <StatCard
-                        title="Total Pengajuan"
+                        icon={<UserCheck className="h-[21px] w-[21px]" />}
+                        title="Akun Warga"
+                        value={stats.total_warga}
+                        tone="info"
+                        badge="+1,8%"
+                    />
+                    <StatCard
+                        icon={<FileText className="h-[21px] w-[21px]" />}
+                        title="Permohonan Surat"
                         value={stats.total_pengajuan}
-                        icon={<FileText className="h-7 w-7" />}
-                        iconColor="bg-blue-600 text-white"
-                        badge={stats.pengajuan_hari_ini > 0
-                            ? { label: `+${stats.pengajuan_hari_ini} hari ini`, cls: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' }
-                            : null}
+                        tone="warn"
+                        badge={stats.pengajuan_hari_ini > 0 ? `+${stats.pengajuan_hari_ini} hari ini` : 'Pending'}
                     />
                     <StatCard
-                        title="Pengaduan Baru"
+                        icon={<Megaphone className="h-[21px] w-[21px]" />}
+                        title="Laporan Pengaduan"
                         value={stats.pengaduan_baru}
-                        icon={<Megaphone className="h-7 w-7" />}
-                        iconColor="bg-amber-500 text-white"
-                        badge={stats.pengaduan_baru > 0
-                            ? { label: 'Pending', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' }
-                            : { label: 'Aman', cls: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' }}
-                    />
-                    <StatCard
-                        title="Verifikasi Warga"
-                        value={stats.verifikasi_menunggu}
-                        icon={<UserCheck className="h-7 w-7" />}
-                        iconColor="bg-red-500 text-white"
-                        badge={stats.verifikasi_menunggu > 0
-                            ? { label: 'Perlu Review', cls: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
-                            : { label: 'Selesai', cls: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' }}
+                        tone="danger"
+                        badge={stats.pengaduan_baru > 0 ? 'Urgent' : 'Aman'}
                     />
                 </div>
 

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\BukuTamu;
 use App\Models\KontenDesa;
+use App\Models\MasterSurat;
 use App\Models\Penduduk;
 use App\Models\Pengaduan;
 use App\Models\PengajuanSurat;
@@ -62,13 +64,18 @@ class DashboardController extends Controller
             ->take(5)
             ->get(['id', 'user_id', 'master_surat_id', 'status', 'created_at']);
 
+        $totalPenduduk = Penduduk::count();
+        $totalWarga    = User::where('role', 'warga')->count();
+
         return Inertia::render('dashboard/admin', [
             'stats' => [
-                'total_users'          => $totalUsers,
-                'total_pengajuan'      => $totalPengajuan,
-                'pengajuan_hari_ini'   => $pengajuanHariIni,
-                'pengaduan_baru'       => $pengaduanBaru,
-                'verifikasi_menunggu'  => $verifikasiMenunggu,
+                'total_penduduk'          => $totalPenduduk,
+                'total_warga'             => $totalWarga,
+                'total_users'             => $totalUsers,
+                'total_pengajuan'         => $totalPengajuan,
+                'pengajuan_hari_ini'      => $pengajuanHariIni,
+                'pengaduan_baru'          => $pengaduanBaru,
+                'verifikasi_menunggu'     => $verifikasiMenunggu,
                 'pengguna_baru_bulan_ini' => $penggunaBulanIni,
             ],
             'chart_mingguan'  => $chartMingguan,
@@ -100,23 +107,51 @@ class DashboardController extends Controller
             ->whereYear('updated_at', now()->year)
             ->count();
 
-        // Recent: tampilkan yang perlu perhatian kades + yang baru disahkan
-        $recentPengajuan = PengajuanSurat::with('user:id,name')
-            ->with('masterSurat:id,nama_surat')
-            ->whereIn('status', ['menunggu_pengesahan', 'disetujui', 'siap_diambil', 'ditolak_kepala'])
-            ->latest()
-            ->take(5)
+        $totalWarga = User::where('role', 'warga')->count();
+
+        $pengaduanSelesaiBulanIni = Pengaduan::where('status', 'selesai')
+            ->whereMonth('updated_at', now()->month)
+            ->whereYear('updated_at', now()->year)
+            ->count();
+
+        // Hanya pengajuan menunggu pengesahan — untuk tabel aksi kades
+        $menungguPengesahanList = PengajuanSurat::with(['user:id,name', 'masterSurat:id,nama_surat'])
+            ->where('status', 'menunggu_pengesahan')
+            ->oldest()
+            ->take(10)
             ->get(['id', 'no_pengajuan', 'user_id', 'master_surat_id', 'status', 'created_at']);
+
+        // Top 5 jenis surat bulan ini (untuk bar chart)
+        $chartJenisSurat = MasterSurat::withCount([
+                'pengajuanSurat as jumlah' => fn ($q) => $q
+                    ->whereMonth('created_at', now()->month)
+                    ->whereYear('created_at', now()->year),
+            ])
+            ->orderByDesc('jumlah')
+            ->take(5)
+            ->get(['id', 'nama_surat'])
+            ->map(fn ($m) => ['label' => $m->nama_surat, 'jumlah' => $m->jumlah]);
+
+        $totalBulanIni   = PengajuanSurat::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+        $tingkatSelesai  = $totalBulanIni > 0 ? round(($selesaiBulanIni / $totalBulanIni) * 100) : 0;
+        $jenisTerbanyak  = $chartJenisSurat->first()['label'] ?? '—';
 
         return Inertia::render('dashboard/kepala-desa', [
             'stats' => [
-                'total_pengajuan'     => $totalPengajuan,
-                'menunggu_pengesahan' => $menungguPengesahan,
-                'disahkan_bulan_ini'  => $disahkanBulanIni,
-                'ditolak_bulan_ini'   => $ditolakBulanIni,
-                'selesai_bulan_ini'   => $selesaiBulanIni,
+                'menunggu_pengesahan'        => $menungguPengesahan,
+                'disahkan_bulan_ini'         => $disahkanBulanIni,
+                'pengaduan_selesai_bulan_ini'=> $pengaduanSelesaiBulanIni,
+                'total_warga'                => $totalWarga,
+                'selesai_bulan_ini'          => $selesaiBulanIni,
+                'ditolak_bulan_ini'          => $ditolakBulanIni,
             ],
-            'recent_pengajuan' => $recentPengajuan,
+            'menunggu_pengesahan_list' => $menungguPengesahanList,
+            'chart_jenis_surat'        => $chartJenisSurat,
+            'ringkasan' => [
+                'jenis_terbanyak'    => $jenisTerbanyak,
+                'tingkat_penyelesaian' => $tingkatSelesai,
+                'total_bulan_ini'    => $totalBulanIni,
+            ],
         ]);
     }
 
@@ -184,12 +219,26 @@ class DashboardController extends Controller
         $pengaduanBaru = Pengaduan::where('status', 'menunggu')->count();
 
         // Antrian prioritas: menunggu verifikasi + siap cetak
+        $selesaiHariIni = PengajuanSurat::where('status', 'selesai')
+            ->whereDate('updated_at', today())
+            ->count();
+
         $antrian = PengajuanSurat::with('user:id,name')
             ->with('masterSurat:id,nama_surat,kode')
             ->whereIn('status', ['menunggu', 'disetujui', 'siap_diambil'])
             ->oldest()
-            ->take(10)
+            ->take(15)
             ->get(['id', 'no_pengajuan', 'user_id', 'master_surat_id', 'status', 'created_at']);
+
+        $recentPengaduan = Pengaduan::where('status', 'menunggu')
+            ->latest()
+            ->take(4)
+            ->get(['id', 'judul', 'status', 'created_at']);
+
+        $bukuTamuHariIni = BukuTamu::whereDate('created_at', today())
+            ->latest()
+            ->take(5)
+            ->get(['id', 'nama_pengunjung', 'keperluan', 'instansi', 'created_at']);
 
         return Inertia::render('dashboard/staff', [
             'stats' => [
@@ -197,8 +246,11 @@ class DashboardController extends Controller
                 'siap_cetak'          => $siapCetak,
                 'siap_diambil'        => $siapDiambil,
                 'pengaduan_baru'      => $pengaduanBaru,
+                'selesai_hari_ini'    => $selesaiHariIni,
             ],
-            'antrian' => $antrian,
+            'antrian'          => $antrian,
+            'recent_pengaduan' => $recentPengaduan,
+            'buku_tamu_hari_ini' => $bukuTamuHariIni,
         ]);
     }
 }
