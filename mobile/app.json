@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "updates": {
-      "enabled": false
+      "enabled": false,
+      "url": "https://u.expo.dev/a1bc3e43-08aa-4387-aa1b-51477b87e738"
     },
     "ios": {
       "supportsTablet": true
@@ -55,9 +56,12 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6b4efda2-4f2b-478d-8dc6-2d03e3d16911"
+        "projectId": "a1bc3e43-08aa-4387-aa1b-51477b87e738"
       }
     },
-    "owner": "kurtubis-organization"
+    "owner": "kurtubis-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }
