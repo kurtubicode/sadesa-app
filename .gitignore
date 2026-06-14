@@ -1,16 +1,12 @@
-<<<<<<< HEAD
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
+vendor/
 
-# Expo
+# Expo / React Native
 .expo/
 dist/
 web-build/
 expo-env.d.ts
-
-# Native
 .kotlin/
 *.orig.*
 *.jks
@@ -18,59 +14,55 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
 .metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
 /ios
 /android
-=======
+
+# Laravel
 /.phpunit.cache
 /bootstrap/ssr
-/node_modules
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
 /resources/js/actions
 /resources/js/routes
 /resources/js/wayfinder
-/vendor
-.DS_Store
-Thumbs.db
-.env
 .env.backup
 .env.production
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
-npm-debug.log
-yarn-error.log
 /auth.json
-/.fleet
-/.idea
-/.nova
-/.vscode
-/.zed
->>>>>>> a27684a9634b55ca8918c16b30e2f36bb4bd17da
+/vendor/
+
+# Local Environment
+.env
+.env*.local
+
+# Debug / Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# IDEs and Editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.fleet/
+.nova/
+.zed/
+
+# Misc
+*.pem
+*.tsbuildinfo
+app-example/
